@@ -52,14 +52,14 @@ class DecodeBox(nn.Module):
         stride_height = self.image_height / feature_height
         stride_width = self.image_width / feature_width
 
-        # 特征层上的 anchor 大小
-        scaled_anchors = [
-            (
-                anchor_widthidth / stride_width,
-                anchor_heighteight / stride_height
-            )
-            for anchor_widthidth, anchor_heighteight in self.anchors
-        ]
+        # # 特征层上的 anchor 大小
+        # scaled_anchors = [
+        #     (
+        #         anchor_widthidth / stride_width,
+        #         anchor_heighteight / stride_height
+        #     )
+        #     for anchor_widthidth, anchor_heighteight in self.anchors
+        # ]
 
         # 对预测层的 Tensor 维度进行变换
         # (batch_size, 3*(4+1+classes), feature_height, feature_width) ->  (batch_size, 3, feature_height, feature_width, 4+1+classes)
@@ -111,8 +111,8 @@ class DecodeBox(nn.Module):
 
         # 构造先验框宽高网格
         # (3, 2) -> torch.Size([3, 1])
-        anchor_width = FloatTensor(scaled_anchors).index_select(1, LongTensor([0]))  # 获取所有 anchor 的宽，即第一维度上索引为零的值
-        anchor_height = FloatTensor(scaled_anchors).index_select(1, LongTensor([1]))  # 获取所有 anchor 的高，即第一维度上索引为一的值
+        anchor_width = FloatTensor(self.anchors).index_select(1, LongTensor([0]))  # 获取所有 anchor 的宽，即第一维度上索引为零的值
+        anchor_height = FloatTensor(self.anchors).index_select(1, LongTensor([1]))  # 获取所有 anchor 的高，即第一维度上索引为一的值
         # (3, 1) ->
         # (batch_size, 1) * (3, 1) = (batch_size * 3, 1) -> 
         # (batch_size * 3, 1) * (1, 1, feature_height * feature_width) = (batch_size * 3, 1, feature_height * feature_width) ->
@@ -124,8 +124,8 @@ class DecodeBox(nn.Module):
         pred_boxes = FloatTensor(prediction[..., :4].shape)  # 创建解析后的预测框
         pred_boxes[..., 0] = (x.detach() + grid_x) * stride_width  # 预测框为先验框中心加偏移
         pred_boxes[..., 1] = (y.detach() + grid_y) * stride_height  # 预测框为先验框中心加偏移
-        pred_boxes[..., 2] = torch.exp(w.detach()) * anchor_width * stride_width  # 预测框为当前特征层的先验框大小乘以预测系数
-        pred_boxes[..., 3] = torch.exp(h.detach()) * anchor_height * stride_height  # 预测框为当前特征层的先验框大小乘以预测系数
+        pred_boxes[..., 2] = torch.exp(w.detach()) * anchor_width   # 预测框为当前特征层的先验框大小乘以预测系数
+        pred_boxes[..., 3] = torch.exp(h.detach()) * anchor_height   # 预测框为当前特征层的先验框大小乘以预测系数
 
         # 等同于
         # _scale = torch.Tensor([stride_width, stride_height] * 2).type(FloatTensor)
