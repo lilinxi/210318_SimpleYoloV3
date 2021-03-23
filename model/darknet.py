@@ -94,11 +94,12 @@ class DarkNet(nn.Module):
 
         x = self.layer1(x)
         x = self.layer2(x)
-        out3 = self.layer3(x)
-        out4 = self.layer4(out3)
-        out5 = self.layer5(out4)
 
-        return out3, out4, out5
+        feature_52 = self.layer3(x)
+        feature_26 = self.layer4(feature_52)
+        feature_13 = self.layer5(feature_26)
+
+        return feature_52, feature_26, feature_13
 
 
 def darknet53(pretrained=False):

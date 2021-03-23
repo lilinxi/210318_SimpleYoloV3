@@ -192,7 +192,7 @@ def non_max_suppression(
     置信度筛选
     nms 筛选
 
-    :param prediction: 预测框列表，torch.Size([1, 10647, 85]) = (batch_size, 13*13*3 + 26*26*3 + 52*52*3 = 10647, 3*(x+y+w+h+conf+classes))
+    :param prediction: 预测框列表，torch.Size([1, 10647, 85]) = (batch_size, 13*13*3 + 26*26*3 + 52*52*3 = 10647, (x+y+w+h+conf+classes))
     :param classes: 类别数目
     :param conf_threshold: 置信度阈值
     :param nms_iou_threshold: iou 阈值

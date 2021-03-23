@@ -114,7 +114,7 @@ class YoloV3(object):
             """
 
             # 进行非极大抑制
-            # (batch, 13*13*3 + 26*26*3 + 52*52*3 = 10647, 3*(4+1+classes)) ->
+            # (batch, 13*13*3 + 26*26*3 + 52*52*3 = 10647, (4+1+classes)) ->
             # (box_num, x1 + y1 + x2 + y2 + obj_conf + class_conf + class_label = 7)
             batch_detections = yolo_utils.non_max_suppression(
                 output,  # 预测框列表
