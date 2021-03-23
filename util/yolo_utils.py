@@ -9,9 +9,20 @@ import torchvision.ops
 
 # -----------------------------------------------------------------------------------------------------------#
 # class DecodeBox(nn.Module) # 将预测结果解析为预测框
-# def letterbox_image(image, size)
-# def non_max_suppression(prediction, classes, conf_threshold=0.5, nms_iou_threshold=0.4)
-# def yolo_correct_boxes(ymin, xmin, ymax, xmax, input_shape, image_shape)
+#
+# def letterbox_image(image: Image.Image, scale_width: int, scale_height: int) -> Image.Image:
+#    检测图像增加灰条，实现不失真的图像等比例放缩
+#
+# def non_max_suppression(
+#         prediction: torch.Tensor, classes: int,
+#         conf_threshold: float = 0.5, nms_iou_threshold: float = 0.4) -> List[torch.Tensor]:
+#     进行非极大值抑制，并将预测结果的格式转换成左上角右下角的格式。
+#
+# def yolo_correct_boxes(
+#         xmin, ymin, xmax, ymax,
+#         image_input_width, image_input_height,
+#         image_raw_width, image_raw_height):
+#     从灰条检测图像中恢复原始的检测框
 # -----------------------------------------------------------------------------------------------------------#
 from typing import List
 
@@ -274,13 +285,6 @@ def yolo_correct_boxes(
         image_raw_width, image_raw_height):
     """
     从灰条检测图像中恢复原始的检测框
-    :param ymin:
-    :param xmin:
-    :param ymax:
-    :param xmax:
-    :param input_shape:
-    :param image_shape:
-    :return:
     """
     input_shape = np.asarray([image_input_width, image_input_height])
     image_shape = np.asarray([image_raw_width, image_raw_height])

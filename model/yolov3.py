@@ -143,15 +143,16 @@ class YoloV3(object):
                                                      numpy.expand_dims(top_boxes[:, 3], -1)
 
             # 从灰条检测图像中恢复原始的检测框
-            boxes = yolo_utils.yolo_correct_boxes(top_xmin, top_ymin, top_xmax, top_ymax,
-                                                  self.config["image_width"], self.config["image_height"],
-                                                  image_raw_width, image_raw_height)
+            boxes = yolo_utils.yolo_correct_boxes(
+                top_xmin, top_ymin, top_xmax, top_ymax,
+                self.config["image_width"], self.config["image_height"],
+                image_raw_width, image_raw_height)
 
         # 对每一个类别分别绘制预测框
         for index, label in enumerate(top_label):
             ymin, xmin, ymax, xmax = boxes[index]
 
-            print("raw: box:", xmin, ymin, xmax, ymax, "label:", label)
+            print("raw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
 
             # 绘制一个稍大一点的框框
             ymin = ymin - 5
@@ -164,14 +165,14 @@ class YoloV3(object):
             ymax = min(image_raw_height, numpy.floor(ymax + 0.5).astype('int32'))
             xmax = min(image_raw_width, numpy.floor(xmax + 0.5).astype('int32'))
 
-            print("draw: box:", xmin, ymin, xmax, ymax, "label:", label)
+            print("draw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
 
             # 画框框
             draw = ImageDraw.Draw(image)
             draw.rectangle([xmin, ymin, xmax, ymax])
             # 绘制标签
             font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
-            draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000"                                                                                                                                                                                                                                                                                                                                                                                                                                                                 )
+            draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
             del draw
 
         return image
