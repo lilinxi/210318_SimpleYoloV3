@@ -5,15 +5,16 @@ from PIL import Image
 
 import torch
 import torch.nn as nn
-from torchvision.ops import nms
-
+import torchvision.ops
 
 # -----------------------------------------------------------------------------------------------------------#
 # class DecodeBox(nn.Module) # 将预测结果解析为预测框
 # def letterbox_image(image, size)
-# def non_max_suppression(prediction, classes, conf_thres=0.5, nms_thres=0.4)
-# def yolo_correct_boxes(top, left, bottom, right, input_shape, image_shape)
+# def non_max_suppression(prediction, classes, conf_threshold=0.5, nms_iou_threshold=0.4)
+# def yolo_correct_boxes(ymin, xmin, ymax, xmax, input_shape, image_shape)
 # -----------------------------------------------------------------------------------------------------------#
+from typing import List
+
 
 class DecodeBox(nn.Module):
     """
@@ -124,8 +125,8 @@ class DecodeBox(nn.Module):
         pred_boxes = FloatTensor(prediction[..., :4].shape)  # 创建解析后的预测框
         pred_boxes[..., 0] = (x.detach() + grid_x) * stride_width  # 预测框为先验框中心加偏移
         pred_boxes[..., 1] = (y.detach() + grid_y) * stride_height  # 预测框为先验框中心加偏移
-        pred_boxes[..., 2] = torch.exp(w.detach()) * anchor_width   # 预测框为当前特征层的先验框大小乘以预测系数
-        pred_boxes[..., 3] = torch.exp(h.detach()) * anchor_height   # 预测框为当前特征层的先验框大小乘以预测系数
+        pred_boxes[..., 2] = torch.exp(w.detach()) * anchor_width  # 预测框为当前特征层的先验框大小乘以预测系数
+        pred_boxes[..., 3] = torch.exp(h.detach()) * anchor_height  # 预测框为当前特征层的先验框大小乘以预测系数
 
         # 等同于
         # _scale = torch.Tensor([stride_width, stride_height] * 2).type(FloatTensor)
@@ -146,129 +147,151 @@ class DecodeBox(nn.Module):
         return predict_bbox_attrs.detach()
 
 
-def letterbox_image(image, size):
+def letterbox_image(image: Image.Image, scale_width: int, scale_height: int) -> Image.Image:
     """
-    检测图像增加灰条，实现不失真的图像放缩
+    检测图像增加灰条，实现不失真的图像等比例放缩
+
+    :param image: 原始图像
+    :param scale_width: 目标图像宽度
+    :param scale_height: 目标图像高度
+    :return:
     """
-    iw, ih = image.size
-    w, h = size
+    image_width, image_height = image.size
 
-    scale = min(w / iw, h / ih)  # 图像放缩倍数
+    scale = min(scale_width / image_width, scale_height / image_height)  # 图像放缩倍数，取最小的那个放缩值
 
-    nw = int(iw * scale)  # 放缩后的图像大小
-    nh = int(ih * scale)
+    nw = int(image_width * scale)  # 放缩后的图像大小
+    nh = int(image_height * scale)
 
-    image = image.resize((nw, nh), Image.BICUBIC)  # 图像放缩
+    image = image.resize((nw, nh), Image.BICUBIC)  # 图像放缩，等比例
 
-    new_image = Image.new('RGB', size, (128, 128, 128))  # 创建一张灰色底板作为返回的图像
-    new_image.paste(image, ((w - nw) // 2, (h - nh) // 2))  # 放缩后的图像粘贴到底板中央
+    new_image = Image.new('RGB', (scale_width, scale_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
+    new_image.paste(image, ((scale_width - nw) // 2, (scale_height - nh) // 2))  # 等比例放缩后的图像粘贴到底板中央
 
     return new_image
 
 
-def non_max_suppression(prediction, classes, conf_thres=0.5, nms_thres=0.4):
+def non_max_suppression(
+        prediction: torch.Tensor, classes: int,
+        conf_threshold: float = 0.5, nms_iou_threshold: float = 0.4) -> List[torch.Tensor]:
     """
     进行非极大值抑制，并将预测结果的格式转换成左上角右下角的格式。
-    :param prediction: 预测框列表，torch.Size([1, 10647, 85])
-    :param classes: 类别数目
-    :param conf_thres: 置信度
-    :param nms_thres: iou 阈值
-    :return:
-    """
-    box_corner = prediction.new(prediction.shape)  # 复制原预测框列表，将预测框格式改为左上角右下角的格式
-    box_corner[:, :, 0] = prediction[:, :, 0] - prediction[:, :, 2] / 2
-    box_corner[:, :, 1] = prediction[:, :, 1] - prediction[:, :, 3] / 2
-    box_corner[:, :, 2] = prediction[:, :, 0] + prediction[:, :, 2] / 2
-    box_corner[:, :, 3] = prediction[:, :, 1] + prediction[:, :, 3] / 2
 
-    # 将预测框格式改为左上角右下角的格式
+    预测结果格式转换
+    置信度筛选
+    nms 筛选
+
+    :param prediction: 预测框列表，torch.Size([1, 10647, 85]) = (batch_size, 13*13*3 + 26*26*3 + 52*52*3 = 10647, 3*(x+y+w+h+conf+classes))
+    :param classes: 类别数目
+    :param conf_threshold: 置信度阈值
+    :param nms_iou_threshold: iou 阈值
+    :return:
+        prediction_after_nms: batch_size * (box_num, xmin + ymin + xmax + ymax + obj_conf + class_conf + class_label = 7)
+    """
+
+    # 复制原预测框列表，将预测框格式改为左上角右下角的格式
+    box_corner = prediction.new(prediction.shape)
+    box_corner[:, :, 0] = prediction[:, :, 0] - prediction[:, :, 2] / 2  # x - w/2 = xmin
+    box_corner[:, :, 1] = prediction[:, :, 1] - prediction[:, :, 3] / 2  # y - h/2 = ymin
+    box_corner[:, :, 2] = prediction[:, :, 0] + prediction[:, :, 2] / 2  # x + w/2 = xmax
+    box_corner[:, :, 3] = prediction[:, :, 1] + prediction[:, :, 3] / 2  # y + h/2 = ymax
+
+    # 将新格式替换原预测框列表
     prediction[:, :, :4] = box_corner[:, :, :4]
 
-    output = [None for _ in range(len(prediction))]  # [None]，只有一张图片，一个批次的输出
+    # 创建返回结果列表，len 为 batch_size
+    batch_size = len(prediction)
+    prediction_after_nms = [None] * batch_size
 
-    for image_i, image_pred in enumerate(prediction):  # 遍历每张图片和预测数据
+    for image_index, image_prediction in enumerate(prediction):  # 遍历每张图片和预测数据
         # 对种类预测部分取max。
-        class_conf, class_pred = torch.max(image_pred[:, 5:5 + classes], 1, keepdim=True)
-
-        print("image_pred.shape:", image_pred.shape)  # torch.Size([10647, 85])
-        print("class_conf.shape:", class_conf.shape)  # torch.Size([10647, 1])
-        print("class_pred.shape:", class_pred.shape)  # torch.Size([10647, 1])
-        print("class_conf[:10]:", class_conf[:10])  # 最大值作为置信度
-        print("class_pred[:10]:", class_pred[:10])  # 最大值的类别作为预测标签
+        image_classes_prediction = image_prediction[:, 5:5 + classes]
+        class_conf, class_label = torch.max(image_classes_prediction, 1, keepdim=True)
+        # class_conf: 预测种类得分的最大值作为置信度
+        # class_label: 预测种类得分的最大值的索引作为预测标签
 
         # 利用置信度进行第一轮筛选
-        conf_mask = (image_pred[:, 4] * class_conf[:, 0] >= conf_thres).squeeze()  # obj_conf * class_conf
-        print("conf_mask[:10]:",
-              conf_mask[:10])  # tensor([False, False, False, False, False, False, False, False, False, False])
+        # (10647, 1) * (10647, 1) -> (10647, 1) -> (10647)
+        # obj_conf * class_conf >= conf_threshold
+        conf_mask = (image_prediction[:, 4] * class_conf[:, 0] >= conf_threshold).squeeze()
 
         # 根据置信度进行预测结果的筛选，只保留一小部分预测框
-        image_pred = image_pred[conf_mask]
-        class_conf = class_conf[conf_mask]
-        class_pred = class_pred[conf_mask]
+        image_prediction_after_conf_threshold = image_prediction[
+            conf_mask]  # torch.Size([10647, 85]) -> (threshold_size, 85)
+        class_conf_after_conf_threshold = class_conf[conf_mask]  # torch.Size([10647, 1]) -> (threshold_size, 1)
+        class_label_after_conf_threshold = class_label[conf_mask]  # torch.Size([10647, 1]) -> (threshold_size, 1)
 
-        print("image_pred.shape:", image_pred.shape)  # torch.Size([5, 85])
-
-        print(image_pred.size(0))  # 5
-        print(not image_pred.size(0))  # False
-
-        if not image_pred.size(0):  # 如果没有预测框了则开始下一个图片
+        if not image_prediction_after_conf_threshold.size(0):  # 如果没有预测框了则开始下一个图片，即 threshold_size = 0
             continue
 
         # -------------------------------------------------------------------------#
-        #   创建 detections  [batch_size, num_anchors, 7]
-        #   7 的内容为：x1, y1, x2, y2, obj_conf, class_conf, class_pred
+        #   创建 detections  [threshold_size, 7]
+        #   7 的内容为：xmin + ymin + xmax + ymax + obj_conf + class_conf + class_label
         # -------------------------------------------------------------------------#
-        detections = torch.cat((image_pred[:, :5], class_conf.float(), class_pred.float()), 1)
+        detections = torch.cat(
+            (
+                image_prediction_after_conf_threshold[:, :5],
+                class_conf_after_conf_threshold.float(),
+                class_label_after_conf_threshold.float()
+            ), 1)
 
         #  获得预测结果中包含的所有种类
-        unique_labels = detections[:, -1].cpu().unique()
+        unique_labels = detections[:, -1].unique()
 
         # 如果使用 GPU 则转化为 GPU 存储
-        if prediction.is_cuda:
-            unique_labels = unique_labels.cuda()
-            detections = detections.cuda()
+        # if prediction.is_cuda:
+        #     unique_labels = unique_labels.cuda()
+        #     detections = detections.cuda()
 
         # 遍历每一个类别
-        for c in unique_labels:
+        for label in unique_labels:
             # 获得某一类得分筛选后全部的预测结果
-            detections_class = detections[detections[:, -1] == c]
+            detections_in_label = detections[detections[:, -1] == label]
 
             #  使用官方自带的非极大抑制会速度更快一些！
-            keep = nms(
-                detections_class[:, :4],  # 预测框
-                detections_class[:, 4] * detections_class[:, 5],  # 置信度：obj_conf * classes_conf
-                nms_thres  # iou 阈值
+            keep = torchvision.ops.nms(
+                detections_in_label[:, :4],  # 预测框
+                detections_in_label[:, 4] * detections_in_label[:, 5],  # 置信度：obj_conf * classes_conf
+                nms_iou_threshold  # iou 阈值
             )
 
             # 筛选之后的预测结果
-            max_detections = detections_class[keep]
+            max_detections_in_label = detections_in_label[keep]
 
             # 添加筛选之后的预测结果，直接添加或者拼接在后面
-            output[image_i] = max_detections \
-                if output[image_i] is None \
-                else torch.cat((output[image_i], max_detections))
+            if prediction_after_nms[image_index] is None:
+                prediction_after_nms[image_index] = max_detections_in_label
+            else:
+                prediction_after_nms[image_index] = torch.cat(
+                    (prediction_after_nms[image_index], max_detections_in_label), 0)
 
-    return output
+    return prediction_after_nms
 
 
-def yolo_correct_boxes(top, left, bottom, right, input_shape, image_shape):
+def yolo_correct_boxes(
+        xmin, ymin, xmax, ymax,
+        image_input_width, image_input_height,
+        image_raw_width, image_raw_height):
     """
     从灰条检测图像中恢复原始的检测框
-    :param top:
-    :param left:
-    :param bottom:
-    :param right:
+    :param ymin:
+    :param xmin:
+    :param ymax:
+    :param xmax:
     :param input_shape:
     :param image_shape:
     :return:
     """
+    input_shape = np.asarray([image_input_width, image_input_height])
+    image_shape = np.asarray([image_raw_width, image_raw_height])
+
     new_shape = image_shape * np.min(input_shape / image_shape)
 
     offset = (input_shape - new_shape) / 2. / input_shape
     scale = input_shape / new_shape
 
-    box_yx = np.concatenate(((top + bottom) / 2, (left + right) / 2), axis=-1) / input_shape
-    box_hw = np.concatenate((bottom - top, right - left), axis=-1) / input_shape
+    box_yx = np.concatenate(((ymin + ymax) / 2, (xmin + xmax) / 2), axis=-1) / input_shape
+    box_hw = np.concatenate((ymax - ymin, xmax - xmin), axis=-1) / input_shape
 
     box_yx = (box_yx - offset) * scale
     box_hw *= scale

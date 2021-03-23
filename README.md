@@ -50,3 +50,11 @@ for key in model.state_dict():
 13. Tensor 和 Variable：https://zhuanlan.zhihu.com/p/34298983
 14. Pytorch 中的 Tensor , Variable和Parameter区别与联系：https://blog.csdn.net/u014244487/article/details/104372441
 15. contiguous，如果想要变得连续使用contiguous方法，如果Tensor不是连续的，则会重新开辟一块内存空间保证数据是在内存中是连续的，如果Tensor是连续的，则contiguous无操作。
+16. as_tensor vs from_numpy
+17. numpy 中 array 和 asarray 的区别：array和asarray都可以将结构数据转化为ndarray，但是主要区别就是当数据源是ndarray时，array仍然会copy出一个副本，占用新的内存，但asarray不会。
+18. torch.max(input, dim, keepdim=False, *, out=None) -> (Tensor, LongTensor)
+
+> Returns a namedtuple (values, indices) where values is the maximum value of each row of the input tensor in the given dimension dim. And indices is the index location of each maximum value found (argmax).
+> If keepdim is True, the output tensors are of the same size as input except in the dimension dim where they are of size 1. Otherwise, dim is squeezed (see torch.squeeze()), resulting in the output tensors having 1 fewer dimension than input.
+
+19. cpu().unique() 待记
