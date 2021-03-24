@@ -1,5 +1,7 @@
 # 从 YoloV3 中进阶 Pytorch
 
+pytorch == 1.6.0（nms 需要）
+
 1. bias=False，卷积之后，如果要接 BN 操作，最好是不设置偏置，因为不起作用，而且占显卡内存
 2. 使用 LeakyReLU，收敛速度快，梯度不饱和不消失，负数区域神经元也不会死掉
 3. BCHW 和 BHWC：设计网络时充分考虑两种格式，最好能灵活切换，在 GPU 上训练时使用 NCHW 格式，在 CPU 上做预测时使用 NHWC 格式。
@@ -58,3 +60,22 @@ for key in model.state_dict():
 > If keepdim is True, the output tensors are of the same size as input except in the dimension dim where they are of size 1. Otherwise, dim is squeezed (see torch.squeeze()), resulting in the output tensors having 1 fewer dimension than input.
 
 19. cpu().unique() 待记
+20. multiprocessing
+
+```python
+    # TODO Note: 必须在主函数里，这样，之后才能 fork 多线程
+    # 为使用了 multiprocessing  的程序，提供冻结以产生 Windows 可执行文件的支持。
+    # 需要在 main 模块的 if __name__ == '__main__' 该行之后马上调用该函数。
+    # 由于Python的内存操作并不是线程安全的，对于多线程的操作加了一把锁。这把锁被称为GIL（Global Interpreter Lock）。
+    # 而 Python 使用多进程来替代多线程
+    # torch.multiprocessing.freeze_support()
+    #
+    # torch.manual_seed(1)  # fake random makes reproducible
+```
+
+21. DataLoader在数据集上提供单进程或多进程的迭代器，几个关键的参数意思：
+    - shuffle：设置为True的时候，每个世代都会打乱数据集
+    - collate_fn：如何取样本的，我们可以定义自己的函数来准确地实现想要的功能
+    - drop_last：告诉如何处理数据集长度除于batch_size余下的数据。True就抛弃，否则保留
+    - num_workers=0,  # 表示开启多少个线程数去加载你的数据，默认为0，代表只使用主进程
+

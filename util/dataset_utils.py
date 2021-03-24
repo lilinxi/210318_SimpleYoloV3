@@ -11,7 +11,15 @@ from util import yolo_utils
 from model import config
 
 
-def collate_fn(batch: List) -> tuple:
+# -----------------------------------------------------------------------------------------------------------#
+# def collate_fn(batch: List[tuple]) -> (tuple, tuple):
+# class ToTrainBGRNumpy(object):
+# class ToTensor(object):
+# class RandomHorizontalFlip(object):
+# def get_train_transform(train: bool) -> Compose:
+# -----------------------------------------------------------------------------------------------------------#
+
+def collate_fn(batch: List[tuple]) -> (tuple, tuple):
     """
     对一个批次的数据进行解包后打包
     数据集工具函数
@@ -34,6 +42,10 @@ def collate_fn(batch: List) -> tuple:
 
 
 class ToTrainBGRNumpy(object):
+
+    def __init__(self, config: dict) -> None:
+        self.config = config
+
     """
         Image( height * width )
     ->  Image( height * width )
@@ -49,8 +61,23 @@ class ToTrainBGRNumpy(object):
         """
 
         # 给图像增加灰条，实现不失真的resize
-        crop_img = numpy.array(yolo_utils.letterbox_image(image, (config.Config["img_w"], config.Config["img_h"])))
-        photo = numpy.transpose(crop_img, (2, 0, 1))
+        print(image.size)
+        image.show()
+        exit(-1)
+        crop_img = numpy.array(image)
+
+        crop_img = numpy.array(
+            yolo_utils.letterbox_image(
+                image,
+                self.config["image_width"],
+                self.config["image_height"]
+            ) # width * height * 3
+        )
+        print(crop_img.shape)
+        exit(-1)
+        photo = numpy.transpose(crop_img, (2, 0, 1)) # width * height * RGB -> channels(RGB) * width * height
+        # BCHW 还是 BCWH
+        # RGB 还是 BGR
 
         return photo, target
 
@@ -147,58 +174,49 @@ class RandomHorizontalFlip(object):
         return image, target
 
 
-def get_transform(train: bool) -> Compose:
+def get_train_transform(config: dict, train: bool = False) -> Compose:
     """
     获取数据集的变换
     :param train: 是否是训练集
     :return:
     """
     transforms = []
-    transforms.append(ToTensor())
+    transforms.append(ToTrainBGRNumpy(config))
     if train:
         transforms.append(RandomHorizontalFlip(0.5))
 
     return Compose(transforms)
 
 
-def get_train_transform(train: bool) -> Compose:
-    """
-    获取数据集的变换
-    :param train: 是否是训练集
-    :return:
-    """
-    transforms = []
-    transforms.append(ToTrainBGRNumpy())
-    if train:
-        transforms.append(RandomHorizontalFlip(0.5))
-
-    return Compose(transforms)
-
-
-###########################################################################
-################################### Test ##################################
-###########################################################################
+# -----------------------------------------------------------------------------------------------------------#
+# Test
+# -----------------------------------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
+    from model import config
+    from util import pennfudan_dataset
     import torch.utils.data
 
-    from util import dataset
-
     EPOCH = 2
-    BATCH_SIZE = 1
+    BATCH_SIZE = 2
 
-    dataset = dataset.PennFudanDataset('/Users/limengfan/Dataset/PennFudanPed', get_train_transform(False))
+    dataset = pennfudan_dataset.PennFudanDataset(
+        '/Users/limengfan/Dataset/PennFudanPed',
+        get_train_transform(config, True)
+    )
 
     data_loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
         num_workers=0,  # 表示开启多少个线程数去加载你的数据，默认为0，代表只使用主进程
-        collate_fn=collate_fn)
+        collate_fn=collate_fn,
+        drop_last=True)
 
     for epoch in range(EPOCH):
         print("Epoch:", epoch)
-        for step, (imgs, targets) in enumerate(data_loader):  # 分配 batch data, normalize x when iterate train_loader
-            print("step(type(imgs), type(targets)):",
-                  step, type(imgs), type(targets))  # <class 'tuple'> <class 'tuple'>
+        for step, (images, targets) in enumerate(data_loader):  # 分配 batch data, normalize x when iterate train_loader
+            print("step:", step)
+            print(images)
+            [print(target) for target in targets]
             exit(-1)

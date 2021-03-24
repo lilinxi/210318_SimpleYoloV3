@@ -81,7 +81,7 @@ class YoloV3(object):
         # 输入图像归一化到 0~1
         photo = numpy.array(crop_img, dtype=numpy.float32) / 255.0
 
-        photo = numpy.transpose(photo, (2, 0, 1))  # width * height * RGB -> channels(RGB) * height * width
+        photo = numpy.transpose(photo, (2, 0, 1))  # width * height * RGB -> channels(RGB) * width * height
 
         # 添加上batch_size维度
         images = [photo]
@@ -186,7 +186,7 @@ class YoloV3(object):
 if __name__ == "__main__":
     from model import config
 
-    yolov3 = YoloV3(config.Config)
+    yolov3 = YoloV3(config.DefaultConfig)
 
     print("../images/test0.png")  # height: 415, width: 453
     print("../images/street.jpg")
