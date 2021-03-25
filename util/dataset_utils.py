@@ -5,7 +5,7 @@ import numpy
 from PIL import Image
 
 import torch
-from torchvision.transforms import functional
+import torchvision
 
 from util import yolo_utils
 from model import config
@@ -13,9 +13,8 @@ from model import config
 
 # -----------------------------------------------------------------------------------------------------------#
 # def collate_fn(batch: List[tuple]) -> (tuple, tuple):
-# class ToTrainBGRNumpy(object):
+# class LetterBox(object):
 # class ToTensor(object):
-# class RandomHorizontalFlip(object):
 # def get_train_transform(train: bool) -> Compose:
 # -----------------------------------------------------------------------------------------------------------#
 
@@ -41,7 +40,7 @@ def collate_fn(batch: List[tuple]) -> (tuple, tuple):
     return tuple(zip(*batch))
 
 
-class ToTrainBGRNumpy(object):
+class LetterBox(object):
     """
     target 和 image 的 等比例放缩，target 归一化
     width * height * RGB -> channels(RGB) * width * height
@@ -71,7 +70,7 @@ class ToTrainBGRNumpy(object):
             target
         )  # width * height * 3
 
-        crop_img = numpy.asarray(crop_img)
+        # crop_img = numpy.asarray(crop_img)
         # photo = numpy.transpose(crop_img, (2, 0, 1))  # width * height * RGB -> channels(RGB) * width * height
 
         return crop_img, target
@@ -84,7 +83,7 @@ class ToTensor(object):
     width * height * channel(RGB) -> channel(RGB) * width * height
     """
 
-    def __call__(self, image: Image.Image, target: List) -> (torch.Tensor, list):
+    def __call__(self, image: Image.Image, target: numpy.ndarray) -> (torch.Tensor, torch.Tensor):
         """
         :param image: <class 'PIL.Image.Image'>：height*width*RGB
         :param target: <class 'dict'>
@@ -101,11 +100,18 @@ class ToTensor(object):
         Image.fromarray(numpy.array(image), mode='RGB').show()  # 显示图片
         """
 
-        print(image.shape)
-        image = functional.to_tensor(
-            image)  # Image( height * width ) -> Numpy( width * height * channel(RGB) ) -> Tensor( channel(RGB) * width * height )
-        print(image.shape)
-        exit(-1)
+        print(image.getpixel((0,0)))
+        image = torchvision.transforms.ToTensor()(image)
+        target = torch.as_tensor(target)
+        # print(image.shape)
+        # print(target.shape)
+        # exit(-1)
+
+        # print(image.shape)
+        # image = functional.to_tensor(
+        #     image)  # Image( height * width ) -> Numpy( width * height * channel(RGB) ) -> Tensor( channel(RGB) * width * height )
+        # print(image.shape)
+        # exit(-1)
 
         """
         Image.fromarray(
@@ -137,30 +143,30 @@ class Compose(object):
         return image, target
 
 
-class RandomHorizontalFlip(object):
-    """
-    随机水平反转
-    """
-
-    def __init__(self, prob):
-        """
-        :param prob: 反转的概率
-        """
-        self.prob = prob
-
-    def __call__(self, image: torch.Tensor, target: List) -> (torch.Tensor, list):
-        if random.random() < self.prob:
-            # TODO：待实现
-            pass
-            # image = image.flip(-1)  # 反转图像
-            # bbox = target["boxes"]  # 反转包围盒
-            # height, width = image.shape[-2:]
-            # bbox[:, [0, 2]] = width - bbox[:, [2, 0]]
-            # target["boxes"] = bbox
-            # # 反转二值掩码
-            # if "masks" in target:
-            #     target["masks"] = target["masks"].flip(-1)
-        return image, target
+# class RandomHorizontalFlip(object):
+#     """
+#     随机水平反转
+#     """
+#
+#     def __init__(self, prob):
+#         """
+#         :param prob: 反转的概率
+#         """
+#         self.prob = prob
+#
+#     def __call__(self, image: torch.Tensor, target: List) -> (torch.Tensor, list):
+#         if random.random() < self.prob:
+#             # TODO：待实现
+#             pass
+#             # image = image.flip(-1)  # 反转图像
+#             # bbox = target["boxes"]  # 反转包围盒
+#             # height, width = image.shape[-2:]
+#             # bbox[:, [0, 2]] = width - bbox[:, [2, 0]]
+#             # target["boxes"] = bbox
+#             # # 反转二值掩码
+#             # if "masks" in target:
+#             #     target["masks"] = target["masks"].flip(-1)
+#         return image, target
 
 
 def get_train_transform(config: dict, train: bool = False) -> Compose:
@@ -170,10 +176,10 @@ def get_train_transform(config: dict, train: bool = False) -> Compose:
     :return:
     """
     transforms = []
-    transforms.append(ToTrainBGRNumpy(config))
+    transforms.append(LetterBox(config))
     transforms.append(ToTensor())
-    if train:
-        transforms.append(RandomHorizontalFlip(0.5))
+    # if train:
+    #     transforms.append(RandomHorizontalFlip(0.5))
 
     return Compose(transforms)
 
@@ -207,6 +213,6 @@ if __name__ == "__main__":
         print("Epoch:", epoch)
         for step, (images, targets) in enumerate(data_loader):  # 分配 batch data, normalize x when iterate train_loader
             print("step:", step)
-            print(images)
-            [print(target) for target in targets]
+            [print(index, ":", image) for index, image in enumerate(images)]
+            [print(index, ":", target) for index, target in enumerate(targets)]
             exit(-1)

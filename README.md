@@ -115,3 +115,7 @@ width, height = im.size
 
 26. The given NumPy array is not writeable
     - It is caused by img = transforms.ToTensor()(img)
+    - numpy.asarray(PIL.Image):   WRITEABLE : False
+    - numpy.array(PIL.Image):   WRITEABLE : True
+
+27. functional.to_tensor == transforms.ToTensor(), transforms 包里还有很多变换

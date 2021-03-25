@@ -126,7 +126,14 @@ def darknet53(pretrained=False):
 
 if __name__ == "__main__":
     backbone = darknet53()
+
+    for key in backbone.state_dict():
+        print(key)
+
     print(backbone)
+
+    backbone.load_state_dict(torch.load("../weights/demo_darknet53_weights.pth"))
+
 
     """
 DarkNet(

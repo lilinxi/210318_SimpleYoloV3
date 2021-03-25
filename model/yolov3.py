@@ -83,7 +83,7 @@ class YoloV3(object):
         crop_img.show()
         # print(crop_img.size)
         # print(crop_img.getpixel((500, 100)))
-        crop_img = numpy.asarray(crop_img)  # -> height * width * RGB
+        crop_img = numpy.array(crop_img)  # -> height * width * RGB
         # print(crop_img[100][500])
 
         # display_utils.show_numpy_image(crop_img, [0])
@@ -92,7 +92,7 @@ class YoloV3(object):
 
         # print(crop_img.shape)
 
-        photo = torchvision.transforms.ToTensor()(crop_img.copy())
+        photo = torchvision.transforms.ToTensor()(crop_img)
 
         # 输入图像归一化到 0~1
         # photo = numpy.array(crop_img, dtype=numpy.float32) / 255.0
