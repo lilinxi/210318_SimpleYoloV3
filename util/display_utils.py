@@ -27,3 +27,17 @@ def display_image_box_mask(image: torch.Tensor, target: dict) -> None:
         draw.rectangle(box.numpy(), None, 'red')  # 在 Image 上绘制包围盒
 
     image.show()  # 显示图片
+
+
+def show_numpy_image(image: numpy.ndarray, show_channels=[]) -> None:
+    """
+    :param image: height * width * RGB or height * width * BGR
+    :param show_channel: 判断是否 RGB，展示的通道数
+    :return:
+    """
+    image = image.copy()
+    for c in [0, 1, 2]:
+        if c not in show_channels:
+            image[:, :, c] = 0
+
+    Image.fromarray(image, mode='RGB').show()

@@ -79,3 +79,39 @@ for key in model.state_dict():
     - drop_last：告诉如何处理数据集长度除于batch_size余下的数据。True就抛弃，否则保留
     - num_workers=0,  # 表示开启多少个线程数去加载你的数据，默认为0，代表只使用主进程
 
+22. BCHW 还是 BCWH，RGB 还是 BGR
+    - OpenCV默认通道为BGR，PIL 是 RGB
+    - Pytorch 使用 RGB
+    - BCHW GPU 训练
+    - ToTensor：ToTensor()接收PIL格式的数据, 或者是直接从PIL转来的np.ndarray格式数据, 只要保证进来的数据取值范围是[0, 255], 形状是[h, w, c], 像素顺序是RGB, 它就会帮你做下面的事情
+        - 取值范围[0, 255] / 255.0 => [0, 1.0], 数据格式从int8变成了float32
+        - 形状(shape)转为[c, h, w]
+        - 像素顺序依旧是RGB
+        - [Pytorch数据前后处理整理](https://www.jianshu.com/p/c0ba27e392ff)
+
+作者：conson_wm
+链接：https://www.jianshu.com/p/c0ba27e392ff
+来源：简书
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+> 问题：为什么深度学习中普遍用BRG描述图像，而非RGB通道？
+> 答1：因为caffe，作为最早最流行的一批库的代表，用了opencv，而opencv默认通道是bgr的。这是opencv的入门大坑之一，bgr是个历史遗留问题，为了兼容早年的某些硬件。其实你自己训练完全可以用rgb，新库也基本没了bgr还是rgb这个问题，就是切换下顺序。但如果你要用一些老的训练好的模型，就得兼容老模型的bgr。
+> 答2：因为OpenCV默认通道为BGR，至于为什么用BGR，可能是因为当时比较流行BGR，以至于后来RGB变为主流后，也不方便改了，就一直沿用BGR。而caffe又是用了opencv的，所以没办法。智能外部转换一下。
+
+23. PIL image size
+
+```python
+from PIL import Image 
+im = Image.open('whatever.png') 
+width, height = im.size
+```
+
+24. np.asarray(PIL.Image.Image)， WRITEABLE : False
+    - ndarray.flags
+
+25. only one element tensors can be converted to Python scalars
+    - list(tensor) 无法 torch.as_tensor
+    - ndarray(tensor) 无法 torch.from_numpy
+
+26. The given NumPy array is not writeable
+    - It is caused by img = transforms.ToTensor()(img)

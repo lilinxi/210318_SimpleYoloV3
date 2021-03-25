@@ -4,10 +4,13 @@ import numpy
 from PIL import Image, ImageDraw, ImageFont
 
 import torch
+import torchvision
 import torch.nn as nn
 
 from model import yolov3net
 from util import yolo_utils
+
+from util import display_utils
 
 
 # -----------------------------------------------------------------------------------------------------------#
@@ -70,24 +73,48 @@ class YoloV3(object):
         image_raw_height = image_shape[1]
 
         # 给图像增加灰条，实现不失真的resize
-        crop_img = numpy.array(
-            yolo_utils.letterbox_image(
-                image,
-                self.config["image_width"],
-                self.config["image_height"]
-            )
-        )  # width * height * RGB
+        crop_img, _ = yolo_utils.letterbox_image(
+            image,
+            # 1000,
+            self.config["image_width"],
+            self.config["image_height"]
+        )
+        # width * height * RGB
+        crop_img.show()
+        # print(crop_img.size)
+        # print(crop_img.getpixel((500, 100)))
+        crop_img = numpy.asarray(crop_img)  # -> height * width * RGB
+        # print(crop_img[100][500])
+
+        # display_utils.show_numpy_image(crop_img, [0])
+        # display_utils.show_numpy_image(crop_img, [1])
+        # display_utils.show_numpy_image(crop_img, [2])
+
+        # print(crop_img.shape)
+
+        photo = torchvision.transforms.ToTensor()(crop_img.copy())
 
         # 输入图像归一化到 0~1
-        photo = numpy.array(crop_img, dtype=numpy.float32) / 255.0
+        # photo = numpy.array(crop_img, dtype=numpy.float32) / 255.0
 
-        photo = numpy.transpose(photo, (2, 0, 1))  # width * height * RGB -> channels(RGB) * width * height
+        # print(photo.shape)
+        # photo = numpy.transpose(photo, (2, 0, 1))  # -> channels(RGB) * height * width
+        # print(photo.shape)
+        # print(photo[0][100][500])
+        # print(photo[1][100][500])
+        # print(photo[2][100][500])
 
         # 添加上batch_size维度
-        images = [photo]
+        images = [numpy.asarray(photo)]
 
         with torch.no_grad():  # 没有梯度传递，进行图像检测
+            # print(photo.shape)
             images = torch.as_tensor(images)  # 输入图片转化为 torch Tensor
+            print(images.shape)
+            # print(images[0][0][100][500])
+            # print(images[0][1][100][500])
+            # print(images[0][2][100][500])
+            # exit(-1)
             if self.cuda:  # 配置 GPU 且 Cuda 可用
                 images = images.cuda()
 
@@ -189,8 +216,14 @@ if __name__ == "__main__":
     yolov3 = YoloV3(config.DefaultConfig)
 
     print("../images/test0.png")  # height: 415, width: 453
+    print("../images/test_r.png")
+    print("../images/test_g.png")
+    print("../images/test_b.png")
     print("../images/street.jpg")
     print("../images/test_360.jpg")
+    # print("../images/test_360_b.png")
+    # print("../images/test_360_g.png")
+    # print("../images/test_360_r.png")
 
     while True:
         image_path = input('Input image filename:')

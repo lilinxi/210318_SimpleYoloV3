@@ -1,6 +1,6 @@
 from __future__ import division
 
-import numpy as np
+import numpy
 from PIL import Image
 
 import torch
@@ -158,13 +158,15 @@ class DecodeBox(nn.Module):
         return predict_bbox_attrs.detach()
 
 
-def letterbox_image(image: Image.Image, scale_width: int, scale_height: int) -> Image.Image:
+def letterbox_image(image: Image.Image, scale_width: int, scale_height: int, target: numpy.ndarray = None) \
+        -> (Image.Image, numpy.ndarray):
     """
     检测图像增加灰条，实现不失真的图像等比例放缩
 
     :param image: 原始图像
     :param scale_width: 目标图像宽度
     :param scale_height: 目标图像高度
+    :param target:
     :return:
     """
     image_width, image_height = image.size
@@ -179,7 +181,17 @@ def letterbox_image(image: Image.Image, scale_width: int, scale_height: int) -> 
     new_image = Image.new('RGB', (scale_width, scale_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
     new_image.paste(image, ((scale_width - nw) // 2, (scale_height - nh) // 2))  # 等比例放缩后的图像粘贴到底板中央
 
-    return new_image
+    # 变换 target
+    if target is not None:
+        target[:, 0:4] = target[:, 0:4] * scale
+        target[:, 0] += (scale_width - nw) // 2
+        target[:, 1] += (scale_height - nh) // 2
+        target[:, 0] /= scale_width
+        target[:, 2] /= scale_width
+        target[:, 1] /= scale_height
+        target[:, 3] /= scale_height
+
+    return new_image, target
 
 
 def non_max_suppression(
@@ -286,16 +298,16 @@ def yolo_correct_boxes(
     """
     从灰条检测图像中恢复原始的检测框
     """
-    input_shape = np.asarray([image_input_width, image_input_height])
-    image_shape = np.asarray([image_raw_width, image_raw_height])
+    input_shape = numpy.asarray([image_input_width, image_input_height])
+    image_shape = numpy.asarray([image_raw_width, image_raw_height])
 
-    new_shape = image_shape * np.min(input_shape / image_shape)
+    new_shape = image_shape * numpy.min(input_shape / image_shape)
 
     offset = (input_shape - new_shape) / 2. / input_shape
     scale = input_shape / new_shape
 
-    box_yx = np.concatenate(((ymin + ymax) / 2, (xmin + xmax) / 2), axis=-1) / input_shape
-    box_hw = np.concatenate((ymax - ymin, xmax - xmin), axis=-1) / input_shape
+    box_yx = numpy.concatenate(((ymin + ymax) / 2, (xmin + xmax) / 2), axis=-1) / input_shape
+    box_hw = numpy.concatenate((ymax - ymin, xmax - xmin), axis=-1) / input_shape
 
     box_yx = (box_yx - offset) * scale
     box_hw *= scale
@@ -303,12 +315,12 @@ def yolo_correct_boxes(
     box_mins = box_yx - (box_hw / 2.)
     box_maxes = box_yx + (box_hw / 2.)
 
-    boxes = np.concatenate([
+    boxes = numpy.concatenate([
         box_mins[:, 0:1],
         box_mins[:, 1:2],
         box_maxes[:, 0:1],
         box_maxes[:, 1:2]
     ], axis=-1)
-    boxes *= np.concatenate([image_shape, image_shape], axis=-1)
+    boxes *= numpy.concatenate([image_shape, image_shape], axis=-1)
 
     return boxes

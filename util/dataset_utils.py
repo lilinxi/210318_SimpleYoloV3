@@ -42,6 +42,10 @@ def collate_fn(batch: List[tuple]) -> (tuple, tuple):
 
 
 class ToTrainBGRNumpy(object):
+    """
+    target 和 image 的 等比例放缩，target 归一化
+    width * height * RGB -> channels(RGB) * width * height
+    """
 
     def __init__(self, config: dict) -> None:
         self.config = config
@@ -53,42 +57,24 @@ class ToTrainBGRNumpy(object):
     ->  Numpy( channel(RGB) * width * height )
     """
 
-    def __call__(self, image: Image.Image, target: List) -> (numpy.ndarray, list):
+    def __call__(self, image: Image.Image, target: numpy.ndarray) -> (Image.Image, numpy.ndarray):
         """
         :param image: <class 'PIL.Image.Image'>：height*width*RGB
-        :param target: <class 'dict'>
+        :param target: numpy.ndarray
         :return:
         """
 
-        # 给图像增加灰条，实现不失真的resize
-        print(image.size)
-        image.show()
-        exit(-1)
-        crop_img = numpy.array(image)
+        crop_img, target = yolo_utils.letterbox_image(
+            image,
+            1000,  # self.config["image_width"],
+            self.config["image_height"],
+            target
+        )  # width * height * 3
 
-        crop_img = numpy.array(
-            yolo_utils.letterbox_image(
-                image,
-                self.config["image_width"],
-                self.config["image_height"]
-            ) # width * height * 3
-        )
-        print(crop_img.shape)
-        exit(-1)
-        photo = numpy.transpose(crop_img, (2, 0, 1)) # width * height * RGB -> channels(RGB) * width * height
-        # BCHW 还是 BCWH
-        # RGB 还是 BGR
+        crop_img = numpy.asarray(crop_img)
+        # photo = numpy.transpose(crop_img, (2, 0, 1))  # width * height * RGB -> channels(RGB) * width * height
 
-        return photo, target
-
-        # Image.fromarray(crop_img, mode='RGB').show()
-        # # 输入图像归一化到 0~1
-        # photo = np.array(crop_img, dtype=np.float32) / 255.0
-        #
-        # # Image.open()读取的通道顺序是RGB
-        # # 深度学习中普遍使用BGR而不用RGB
-        # # RGB -> BGR
-        # photo = np.transpose(photo, (2, 0, 1))
+        return crop_img, target
 
 
 class ToTensor(object):
@@ -115,8 +101,11 @@ class ToTensor(object):
         Image.fromarray(numpy.array(image), mode='RGB').show()  # 显示图片
         """
 
+        print(image.shape)
         image = functional.to_tensor(
             image)  # Image( height * width ) -> Numpy( width * height * channel(RGB) ) -> Tensor( channel(RGB) * width * height )
+        print(image.shape)
+        exit(-1)
 
         """
         Image.fromarray(
@@ -182,6 +171,7 @@ def get_train_transform(config: dict, train: bool = False) -> Compose:
     """
     transforms = []
     transforms.append(ToTrainBGRNumpy(config))
+    transforms.append(ToTensor())
     if train:
         transforms.append(RandomHorizontalFlip(0.5))
 
@@ -202,7 +192,7 @@ if __name__ == "__main__":
 
     dataset = pennfudan_dataset.PennFudanDataset(
         '/Users/limengfan/Dataset/PennFudanPed',
-        get_train_transform(config, True)
+        get_train_transform(config.PennFudanConfig, True)
     )
 
     data_loader = torch.utils.data.DataLoader(

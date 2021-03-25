@@ -34,7 +34,7 @@ class PennFudanDataset(torch.utils.data.Dataset):
         self.imgs = list(sorted(os.listdir(os.path.join(root, "PNGImages"))))  # 读取所有的图像的路径
         self.masks = list(sorted(os.listdir(os.path.join(root, "PedMasks"))))  # 读取所有的蒙版的路径
 
-    def __getitem__(self, idx: int) -> (numpy.ndarray, list):  # 根据索引获取数据集中的数据
+    def __getitem__(self, idx: int) -> (numpy.ndarray, numpy.ndarray):  # 根据索引获取数据集中的数据
         """
         返回指定索引处的图片和标签
         :param idx:
@@ -62,16 +62,17 @@ class PennFudanDataset(torch.utils.data.Dataset):
         for i in range(num_objs):
             pos = numpy.where(masks[i])  # 获取所有的掩码像素的坐标
             # 获取掩码的包围盒的坐标
-            xmin = numpy.min(pos[1]) / image_width
-            xmax = numpy.max(pos[1]) / image_width
-            ymin = numpy.min(pos[0]) / image_height
-            ymax = numpy.max(pos[0]) / image_height
+            xmin = numpy.min(pos[1])
+            xmax = numpy.max(pos[1])
+            ymin = numpy.min(pos[0])
+            ymax = numpy.max(pos[0])
             # 左上和右下坐标，转化为中心坐标和宽高，即 cx,cy,w,h
             cx = (xmax - xmin) / 2
             cy = (ymax - ymin) / 2
             w = xmax - xmin
             h = ymax - ymin
             boxes.append([cx, cy, w, h, 0])  # 这里并没有对实例进行分类，只有一类，所有的实例都为分类 1，其 index 为 0
+        boxes = numpy.asarray(boxes)
 
         # 如果有数组增强变换，执行变换
         if self.transforms is not None:
