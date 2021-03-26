@@ -214,7 +214,8 @@ if __name__ == "__main__":
     from model import config
 
     config.PennFudanConfig["weights_path"] \
-        = "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/Epoch70-Total_Loss0.4995-Val_Loss0.4950.pth"
+        = "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/" \
+          "Epoch100-Total_Loss0.3207-Val_Loss0.3198.pth"
 
     yolov3 = YoloV3(config.PennFudanConfig)
 
