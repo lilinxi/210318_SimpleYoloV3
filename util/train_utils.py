@@ -20,7 +20,7 @@ def get_lr(optimizer):
         return param_group['lr']
 
 
-def fit_ont_epoch(net: yolov3net.YoloNet,
+def fit_ont_epoch(net: yolov3net.YoloV3Net,
                   yolo_losses: List[yolov3loss.YoloLoss],
                   optimizer: optim.Optimizer,
                   epoch: int, batch_num: int, batch_num_val: int, Epoch: int,
@@ -77,7 +77,7 @@ def fit_ont_epoch(net: yolov3net.YoloNet,
             # step1.5 图片 tuple 转化为 tensor Variable
             with torch.no_grad():  # 图片的转化过程中，没有梯度传递
                 if cuda and torch.cuda.is_available():
-                    images = Variable(torch.as_tensor(images).type(torch.FloatTensor)).cuda()
+                    images = Variable(torch.as_tensor(images).type(torch.FloatTensor)).cuda() # TODO：写到 collate_fn 里
                     targets = [Variable(torch.as_tensor(ann).type(torch.FloatTensor)).cuda() for ann in targets]
                 else:
                     images = Variable(torch.as_tensor(images).type(torch.FloatTensor))

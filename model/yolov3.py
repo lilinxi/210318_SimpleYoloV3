@@ -213,7 +213,10 @@ class YoloV3(object):
 if __name__ == "__main__":
     from model import config
 
-    yolov3 = YoloV3(config.DefaultConfig)
+    config.PennFudanConfig["weights_path"] \
+        = "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/Epoch70-Total_Loss0.4995-Val_Loss0.4950.pth"
+
+    yolov3 = YoloV3(config.PennFudanConfig)
 
     print("../images/test0.png")  # height: 415, width: 453
     print("../images/test_r.png")

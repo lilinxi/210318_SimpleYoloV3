@@ -65,7 +65,8 @@ class LetterBox(object):
 
         crop_img, target = yolo_utils.letterbox_image(
             image,
-            1000,  # self.config["image_width"],
+            # 1000,
+            self.config["image_width"],
             self.config["image_height"],
             target
         )  # width * height * 3
@@ -83,7 +84,7 @@ class ToTensor(object):
     width * height * channel(RGB) -> channel(RGB) * width * height
     """
 
-    def __call__(self, image: Image.Image, target: numpy.ndarray) -> (torch.Tensor, torch.Tensor):
+    def __call__(self, image: Image.Image, target: numpy.ndarray) -> (numpy.ndarray, numpy.ndarray):
         """
         :param image: <class 'PIL.Image.Image'>：height*width*RGB
         :param target: <class 'dict'>
@@ -100,9 +101,13 @@ class ToTensor(object):
         Image.fromarray(numpy.array(image), mode='RGB').show()  # 显示图片
         """
 
-        print(image.getpixel((0,0)))
-        image = torchvision.transforms.ToTensor()(image)
-        target = torch.as_tensor(target)
+        # print(image.getpixel((0,0)))
+
+        # image = torchvision.transforms.ToTensor()(image)
+        # target = torch.as_tensor(target)
+
+        image = numpy.asarray(torchvision.transforms.ToTensor()(image))
+
         # print(image.shape)
         # print(target.shape)
         # exit(-1)

@@ -278,6 +278,7 @@ class YoloLoss(nn.Module):
 
         # 大小比例
         box_loss_scale = 2 - box_loss_scale_x * box_loss_scale_y
+        # print(box_loss_scale)
 
         # 计算中心偏移情况的loss，使用BCELoss效果好一些
         loss_x = torch.sum(BCELoss(x, tx) / batch_size * box_loss_scale * mask)

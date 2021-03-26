@@ -20,14 +20,19 @@ if __name__ == "__main__":
     Freeze_Epoch_Batch_Size = 16
     Unfreeze_Epoch_Batch_Size = 16
 
+    Freeze_Epoch_LR = 1e-3
+    Unfreeze_Epoch_LR = 1e-4
+
+    Config = config.PennFudanConfig
+
     # 创建 yolo 模型，训练前一定要修改 Config 里面的 classes 参数
     # 训练的是 YoloNet 不是 Yolo
-    model = yolov3net.YoloV3Net(config.PennFudanConfig)
+    model = yolov3net.YoloV3Net(Config)
 
     # 加载 darknet53 的权值作为预训练权值
     print('Loading weights into state dict...')
 
-    model_path = "weights/yolo_weights.pth"
+    model_path = "weights/demo_darknet53_weights.pth"
     device = torch.device('cuda' if Cuda and torch.cuda.is_available() else 'cpu')
 
     model_dict = model.state_dict()  # 模型权重
@@ -46,19 +51,19 @@ if __name__ == "__main__":
     net = model.train()
 
     # 使用 Cuda 则开启并行化
-    if Cuda:
-        net = torch.nn.DataParallel(net)
-        cudnn.benchmark = True
-        net = net.cuda()
+    # if Cuda:
+    #     net = torch.nn.DataParallel(net)
+    #     cudnn.benchmark = True
+    #     net = net.cuda()
 
     # 建立loss函数
     yolo_losses = []
     for i in range(3):
         yolo_losses.append(
             yolov3loss.YoloLoss(
-                np.reshape(config.Config["yolo"]["scaled_anchors"], [-1, 2]),  # 转化为 anchor 列表，(3, 3, 2) -> (9, 2)
-                config.Config["yolo"]["classes"],
-                (config.Config["img_w"], config.Config["img_h"]),
+                np.reshape(Config["anchors"], [-1, 2]),  # 转化为 anchor 列表，(3, 3, 2) -> (9, 2)
+                Config["classes"],
+                (Config["image_width"], Config["image_height"]),
                 Cuda,
                 Normalize
             )
@@ -66,26 +71,25 @@ if __name__ == "__main__":
 
     if True:
         # 粗略训练预测头
-        lr = 1e-3
-        Batch_size = 4
 
         # 设置优化器
-        optimizer = optim.Adam(net.parameters(), lr)
+        optimizer = optim.Adam(net.parameters(), Freeze_Epoch_LR)
         lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
 
-        pennFudanDataset = dataset.PennFudanDataset('/Users/limengfan/Dataset/PennFudanPed',
-                                                    dataset_utils.get_train_transform(False))
+        pennFudanDataset = pennfudan_dataset.PennFudanDataset(
+            '/Users/limengfan/Dataset/PennFudanPed',
+            dataset_utils.get_train_transform(Config, False))
 
         train_data_loader = torch.utils.data.DataLoader(
             pennFudanDataset,
-            batch_size=Batch_size,
+            batch_size=Freeze_Epoch_Batch_Size,
             shuffle=True,
             num_workers=5,
             collate_fn=dataset_utils.collate_fn)
 
         validate_data_loader = torch.utils.data.DataLoader(
             pennFudanDataset,
-            batch_size=Batch_size,
+            batch_size=Freeze_Epoch_Batch_Size,
             shuffle=True,
             num_workers=5,
             collate_fn=dataset_utils.collate_fn)
@@ -93,10 +97,10 @@ if __name__ == "__main__":
         total_num = len(pennFudanDataset)
         num_train = len(pennFudanDataset)
         num_val = len(pennFudanDataset)
-        batch_num = num_train // Batch_size
-        batch_num_val = num_val // Batch_size
+        batch_num = num_train // Freeze_Epoch_Batch_Size
+        batch_num_val = num_val // Freeze_Epoch_Batch_Size
 
-        print("[Train] (num_train, Batch_size, batch_num):", num_train, Batch_size, batch_num)
+        # print("[Train] (num_train, Batch_size, batch_num):", num_train, Freeze_Epoch_Batch_Size, batch_num)
 
         # ------------------------------------#
         #   冻结特征网络
@@ -122,25 +126,25 @@ if __name__ == "__main__":
     if True:
         # 精细训练预测头和特征网络
         lr = 1e-4
-        Batch_size = 4
 
         # 设置优化器
-        optimizer = optim.Adam(net.parameters(), lr)
+        optimizer = optim.Adam(net.parameters(), Unfreeze_Epoch_LR)
         lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
 
-        pennFudanDataset = dataset.PennFudanDataset('/Users/limengfan/Dataset/PennFudanPed',
-                                                    dataset_utils.get_train_transform(False))
+        pennFudanDataset = pennfudan_dataset.PennFudanDataset(
+            '/Users/limengfan/Dataset/PennFudanPed',
+            dataset_utils.get_train_transform(Config, False))
 
         train_data_loader = torch.utils.data.DataLoader(
             pennFudanDataset,
-            batch_size=Batch_size,
+            batch_size=Unfreeze_Epoch_Batch_Size,
             shuffle=True,
             num_workers=5,
             collate_fn=dataset_utils.collate_fn)
 
         validate_data_loader = torch.utils.data.DataLoader(
             pennFudanDataset,
-            batch_size=Batch_size,
+            batch_size=Unfreeze_Epoch_Batch_Size,
             shuffle=True,
             num_workers=5,
             collate_fn=dataset_utils.collate_fn)
@@ -148,8 +152,8 @@ if __name__ == "__main__":
         total_num = len(pennFudanDataset)
         num_train = len(pennFudanDataset)
         num_val = len(pennFudanDataset)
-        batch_num = num_train // Batch_size
-        batch_num_val = num_val // Batch_size
+        batch_num = num_train // Unfreeze_Epoch_Batch_Size
+        batch_num_val = num_val // Unfreeze_Epoch_Batch_Size
 
         # ------------------------------------#
         #   解冻特征网络
