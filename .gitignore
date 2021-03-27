@@ -50,4 +50,6 @@
 *log**/
 *outer**/
 
+*__pycache__**/
+
 *.pth
