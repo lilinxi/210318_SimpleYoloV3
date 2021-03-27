@@ -1,12 +1,12 @@
 import numpy as np
 
 import torch
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from model import yolov3net, config, yolov3loss
-from util import pennfudan_dataset, dataset_utils, train_utils
+from util import train_utils
+from dataset import dataset_utils, pennfudan_dataset
 
 if __name__ == "__main__":
     Cuda = False  # 是否使用Cuda

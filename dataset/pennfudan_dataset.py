@@ -5,8 +5,6 @@ from PIL import Image
 
 import torch.utils.data
 
-from util.dataset_utils import Compose
-
 
 # -----------------------------------------------------------------------------------------------------------#
 # 实现了行人数据集的封装
@@ -23,7 +21,7 @@ from util.dataset_utils import Compose
 
 
 class PennFudanDataset(torch.utils.data.Dataset):
-    def __init__(self, root: str, transforms: Compose) -> None:
+    def __init__(self, root: str, train: bool = True) -> None:
         """
         :param root: 数据集的根目录
         :param transforms: 数据增强需要的变换
@@ -90,7 +88,7 @@ class PennFudanDataset(torch.utils.data.Dataset):
 # -----------------------------------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
-    from util.dataset_utils import collate_fn
+    from dataset.dataset_utils import collate_fn
 
     EPOCH = 2
     BATCH_SIZE = 2

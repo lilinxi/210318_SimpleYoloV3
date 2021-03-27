@@ -1,14 +1,11 @@
-import random
 from typing import List
 
 import numpy
 from PIL import Image
 
-import torch
 import torchvision
 
 from util import yolo_utils
-from model import config
 
 
 # -----------------------------------------------------------------------------------------------------------#
@@ -195,7 +192,7 @@ def get_train_transform(config: dict, train: bool = False) -> Compose:
 
 if __name__ == "__main__":
     from model import config
-    from util import pennfudan_dataset
+    from dataset import pennfudan_dataset
     import torch.utils.data
 
     EPOCH = 2
