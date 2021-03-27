@@ -217,6 +217,8 @@ if __name__ == "__main__":
         = "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/" \
           "Epoch100-Total_Loss0.3207-Val_Loss0.3198.pth"
 
+    config.PennFudanConfig["confidence"] = 0.3
+
     yolov3 = YoloV3(config.PennFudanConfig)
 
     print("../images/test0.png")  # height: 415, width: 453

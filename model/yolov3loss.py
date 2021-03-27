@@ -302,22 +302,6 @@ class YoloLoss(nn.Module):
                loss_w * self.lambda_wh + loss_h * self.lambda_wh + \
                loss_conf * self.lambda_conf + loss_cls * self.lambda_cls
 
-        # print("loss_x:",loss_x)
-        # print("loss_y:",loss_y)
-        # print("loss_w:",loss_w)
-        # print("loss_h:",loss_h)
-        # print("loss_conf:",loss_conf)
-        # print("loss_cls:",loss_cls)
-        # print("loss:",loss)
-        # exit(-1)
-        # tensor(1.3999, grad_fn= < SumBackward0 >)
-        # tensor(1.3288, grad_fn= < SumBackward0 >)
-        # tensor(0.0318, grad_fn= < SumBackward0 >)
-        # tensor(0.0051, grad_fn= < SumBackward0 >)
-        # tensor(4.6013, grad_fn= < AddBackward0 >)
-        # tensor(0.0004, grad_fn= < SumBackward0 >)
-        # tensor(7.3673, grad_fn= < AddBackward0 >)
-
         if self.normalize:  # 损失的数量？
             num_pos = torch.sum(mask)
             num_pos = torch.max(num_pos, torch.ones_like(num_pos))
@@ -329,6 +313,23 @@ class YoloLoss(nn.Module):
         print("loss.shape:", loss.shape)  # torch.Size([])
         print("num_pos:", num_pos)  # tensor(20.)
         """
+
+        print("loss_x:", loss_x)
+        print("loss_y:", loss_y)
+        print("loss_w:", loss_w)
+        print("loss_h:", loss_h)
+        print("loss_conf:", loss_conf)
+        print("loss_cls:", loss_cls)
+        print("loss:", loss)
+        print("num_pos:", num_pos)
+        exit(-1)
+        # tensor(1.3999, grad_fn= < SumBackward0 >)
+        # tensor(1.3288, grad_fn= < SumBackward0 >)
+        # tensor(0.0318, grad_fn= < SumBackward0 >)
+        # tensor(0.0051, grad_fn= < SumBackward0 >)
+        # tensor(4.6013, grad_fn= < AddBackward0 >)
+        # tensor(0.0004, grad_fn= < SumBackward0 >)
+        # tensor(7.3673, grad_fn= < AddBackward0 >)
 
         return loss, num_pos
 
