@@ -76,8 +76,11 @@ class ScaleImageAndTarget(object):
         # 6. 变换 target
         scaled_target = raw_target.copy()
         scaled_target[:, 0:4] = raw_target[:, 0:4] * scale
+        print("scaled_target：",scaled_target)
         scaled_target[:, 0] += (scaled_width - nw) // 2
         scaled_target[:, 1] += (scaled_height - nh) // 2
+
+        print("scaled_target：",scaled_target)
 
         return new_image, scaled_target
 
@@ -93,7 +96,7 @@ class NormImageAndTarget(object):
         self.config = config
 
     def __call__(self, scaled_image: PIL.Image.Image, scaled_target: numpy.ndarray) -> (
-    numpy.ndarray, torch.FloatTensor):
+            numpy.ndarray, torch.FloatTensor):
         # 1. 归一化 PIL.Image.Image，width * height * RGB -> channels(RGB) * height * width
         norm_image = numpy.asarray(torchvision.transforms.ToTensor()(scaled_image))
         # 2. 归一化 target
@@ -106,7 +109,7 @@ class NormImageAndTarget(object):
         return norm_image, norm_target
 
 
-def collate_fn(batch: List[tuple]) -> (torch.autograd.Variable, torch.autograd.Variable):
+def collate_fn(batch: List[tuple]) -> (torch.Tensor, torch.Tensor):
     """
     对一个批次的数据进行解包后打包
     数据集工具函数
@@ -118,7 +121,34 @@ def collate_fn(batch: List[tuple]) -> (torch.autograd.Variable, torch.autograd.V
     # print("3:", type(zip(*batch)), list(zip(*batch)))               # zip 再次打包为：(image, ……) and (target, ……)
     norm_images, norm_targets = zip(*batch)
 
-    var_images = torch.autograd.Variable(torch.as_tensor(norm_images))
-    var_target_list = [torch.autograd.Variable(torch.as_tensor(norm_target)) for norm_target in norm_targets]
+    tensord_images = torch.as_tensor(norm_images)
+    tensord_target_list = [torch.as_tensor(norm_target) for norm_target in norm_targets]
 
-    return var_images, var_target_list
+    return tensord_images, tensord_target_list
+
+
+def decode_tensord_target(config: dict, tensord_target: torch.Tensor) -> numpy.ndarray:
+    """
+
+    :param config:
+    :param tensord_target:
+    :return: box_num * (xmin, ymin, xmax, ymax, label)
+    """
+    raw_target = tensord_target.numpy()
+    raw_target[:, 0] *= config["image_width"]
+    raw_target[:, 1] *= config["image_height"]
+    raw_target[:, 2] *= config["image_width"]
+    raw_target[:, 3] *= config["image_height"]
+
+    print("raw_target：",raw_target)
+
+    raw_boxes = raw_target.copy()
+    raw_boxes[:, 0] = numpy.around(raw_target[:, 0] - raw_target[:, 2] / 2)
+    raw_boxes[:, 1] = numpy.around(raw_target[:, 1] - raw_target[:, 3] / 2)
+    raw_boxes[:, 2] = numpy.around(raw_target[:, 0] + raw_target[:, 2] / 2)
+    raw_boxes[:, 3] = numpy.around(raw_target[:, 1] + raw_target[:, 3] / 2)
+
+    print("raw_boxes：",raw_boxes)
+
+
+    return raw_boxes.astype(numpy.int)

@@ -138,7 +138,7 @@ class YoloV3Net(nn.Module):
 
 
 if __name__ == "__main__":
-    from model import config
+    from conf import config
 
     yolov3 = YoloV3Net(config.DefaultConfig)
     for key in yolov3.state_dict():

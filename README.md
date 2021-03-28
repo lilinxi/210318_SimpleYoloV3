@@ -49,8 +49,15 @@ for key in model.state_dict():
 10. num_batches_tracked: 如果没有指定momentum, 则使用1/num_batches_tracked 作为因数来计算均值和方差(running mean and variance).
 11. nn.DataParallel 的坑
 12. tensor.detach() 和 tensor.data: https://zhuanlan.zhihu.com/p/67184419
+
+> 然而，在某些情况下 .data 可能不安全。 对 x.data 的任何更改都不会被 autograd 跟踪，如果在反向过程中需要 x，那么计算出的梯度将不正确。另一种更安全的方法是使用 x.detach（），它将返回一个与 requires_grad = False 时共享数据的 Tensor，但如果在反向过程中需要 x，那么 autograd 将会就地更改它。
+
 13. Tensor 和 Variable：https://zhuanlan.zhihu.com/p/34298983
 14. Pytorch 中的 Tensor , Variable和Parameter区别与联系：https://blog.csdn.net/u014244487/article/details/104372441
+
+> 合并 Tensor 和 Variable 类
+> 新版本中，torch.autograd.Variable 和 torch.Tensor 将同属一类。更确切地说，torch.Tensor 能够追踪日志并像旧版本的 Variable 那样运行; Variable 封装仍旧可以像以前一样工作，但返回的对象类型是 torch.Tensor。这意味着你的代码不再需要变量封装器。
+
 15. contiguous，如果想要变得连续使用contiguous方法，如果Tensor不是连续的，则会重新开辟一块内存空间保证数据是在内存中是连续的，如果Tensor是连续的，则contiguous无操作。
 16. as_tensor vs from_numpy
 17. numpy 中 array 和 asarray 的区别：array和asarray都可以将结构数据转化为ndarray，但是主要区别就是当数据源是ndarray时，array仍然会copy出一个副本，占用新的内存，但asarray不会。

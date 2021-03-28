@@ -4,7 +4,8 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from model import yolov3net, config, yolov3loss
+from model import yolov3net, yolov3loss
+from conf import config
 from util import train_utils
 from dataset import dataset_utils, pennfudan_dataset
 

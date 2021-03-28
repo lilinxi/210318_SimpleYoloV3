@@ -10,7 +10,7 @@ import torch.nn as nn
 from model import yolov3net
 from util import yolo_utils
 
-from util import display_utils
+import dataset.dataset_utils
 
 
 # -----------------------------------------------------------------------------------------------------------#
@@ -61,6 +61,98 @@ class YoloV3(object):
                 )
             )
         print("YoloV3 generate Success")
+
+    def predict(self, tensord_image: torch.Tensor, tensord_target: torch.Tensor) -> Image.Image:
+        """
+        检测图片
+        :param image: 待检测图片，单张
+        :return: 检测后图片，绘制标签和预测框
+        """
+        with torch.no_grad():  # 没有梯度传递，进行图像检测
+            # 将图像输入网络当中进行预测
+            outputs = self.net(torch.unsqueeze(tensord_image, dim=0))
+            # 预测框列表
+            output_list = []
+            # 对三种大小的预测框进行解析
+            for index in range(3):  # 顺序：大，中，小
+                output_list.append(self.yolov3_decodes[index](outputs[index]))
+
+            """
+            for i, o in enumerate(output_list): print("output_list", i, ":", o.shape)
+            output_list 0 : torch.Size([1, 507, 85])，13*13*3 = 507
+            output_list 1 : torch.Size([1, 2028, 85])，26*26*3=2028
+            output_list 2 : torch.Size([1, 8112, 85])，52*52*3=8112
+            """
+
+            # 将预测框进行堆叠
+            output = torch.cat(output_list, 1)  # 按第一个维度拼接：13*13*3 + 26*26*3 + 52*52*3 = 10647
+
+            """
+            print("output:", output.shape)  # torch.Size([1, 10647, 85])
+            """
+
+            # 进行非极大抑制
+            # (batch, 13*13*3 + 26*26*3 + 52*52*3 = 10647, (4+1+classes)) ->
+            # (box_num, x1 + y1 + x2 + y2 + obj_conf + class_conf + class_label = 7)
+            batch_detections = yolo_utils.non_max_suppression(
+                output,  # 预测框列表
+                self.config["classes"],  # 类别数目
+                conf_threshold=self.config["confidence"],  # 置信度
+                nms_iou_threshold=self.config["iou"]  # iou 阈值
+            )
+
+            # 检测图片时一个批次就一个图片，因此取出第 0 个
+            batch_detections = batch_detections[0].cpu().numpy()
+
+            # box_num, x1 + y1 + x2 + y2 + obj_conf + class_conf + class_pred
+            # print("batch_detections:", batch_detections.shape)  # (12, 7)
+
+            # 对预测框进行得分筛选
+            top_label = numpy.array(batch_detections[:, -1], numpy.int32)  # 标签
+            top_boxes = numpy.array(batch_detections[:, :4])  # 预测框
+
+        image = Image.fromarray(
+            (numpy.transpose(tensord_image.numpy(), (1, 2, 0)) * 255).astype(numpy.uint8),
+            mode="RGB"
+        )
+        print(tensord_target.shape)
+        print(tensord_target)
+
+        raw_boxes = dataset.dataset_utils.decode_tensord_target(self.config, tensord_target)
+        print(raw_boxes)
+
+        for raw_box in raw_boxes:
+            print(raw_box)
+
+
+        # 对每一个类别分别绘制预测框
+        for index, label in enumerate(top_label):
+            ymin, xmin, ymax, xmax = top_boxes[index]
+
+        print("raw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
+
+        # 绘制一个稍大一点的框框
+        ymin = ymin - 5
+        xmin = xmin - 5
+        ymax = ymax + 5
+        xmax = xmax + 5
+        # 过滤框大小
+        ymin = max(0, numpy.floor(ymin + 0.5).astype('int32'))
+        xmin = max(0, numpy.floor(xmin + 0.5).astype('int32'))
+        ymax = min(416, numpy.floor(ymax + 0.5).astype('int32'))
+        xmax = min(416, numpy.floor(xmax + 0.5).astype('int32'))
+
+        print("draw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
+
+        # 画框框
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([xmin, ymin, xmax, ymax])
+        # 绘制标签
+        font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
+        draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
+        del draw
+
+        return image
 
     def detect_image(self, image: Image.Image) -> Image.Image:
         """
@@ -211,7 +303,7 @@ class YoloV3(object):
 
 
 if __name__ == "__main__":
-    from model import config
+    from conf import config
 
     config.PennFudanConfig["weights_path"] \
         = "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/" \

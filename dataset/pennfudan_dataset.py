@@ -77,13 +77,16 @@ class PennFudanDataset(torch.utils.data.Dataset):
             xmax = numpy.max(pos[1])
             ymin = numpy.min(pos[0])
             ymax = numpy.max(pos[0])
+            print("xmin,ymin,xmax,ymax:",xmin,ymin,xmax,ymax)
             # 左上和右下坐标，转化为中心坐标和宽高，即 raw_x, raw_y, raw_w, raw_h
-            raw_x = (xmax - xmin) / 2
-            raw_y = (ymax - ymin) / 2
+            raw_x = (xmax + xmin) / 2
+            raw_y = (ymax + ymin) / 2
             raw_w = xmax - xmin
             raw_h = ymax - ymin
             raw_target.append([raw_x, raw_y, raw_w, raw_h, 0])  # 这里并没有对实例进行分类，只有一类，所有的实例都为分类 1，其 index 为 0
         raw_target = numpy.asarray(raw_target)
+
+        print("raw_target:",raw_target)
 
         # 5. 执行数据变换
         scaled_image, scaled_target = self.transforms(raw_image, raw_target)
@@ -126,21 +129,21 @@ def get_pennfudan_dataloader(
 # -----------------------------------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
-    import model.config
+    import conf.config
 
     EPOCH = 2
     BATCH_SIZE = 2
 
     pennfudan_dataloader = get_pennfudan_dataloader(
-        config=model.config.PennFudanConfig,
+        config=conf.config.PennFudanConfig,
         root='/Users/limengfan/Dataset/PennFudanPed',
         batch_size=BATCH_SIZE
     )
 
     for epoch in range(EPOCH):
         print("Epoch:", epoch)
-        for step, (var_images, var_target_list) in enumerate(pennfudan_dataloader):
+        for step, (tensord_images, tensord_target_list) in enumerate(pennfudan_dataloader):
             print("step:", step)
-            print(var_images)
-            print(var_target_list)
+            print(tensord_images)
+            print(tensord_target_list)
             exit(-1)
