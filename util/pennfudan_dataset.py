@@ -67,8 +67,8 @@ class PennFudanDataset(torch.utils.data.Dataset):
             ymin = numpy.min(pos[0])
             ymax = numpy.max(pos[0])
             # 左上和右下坐标，转化为中心坐标和宽高，即 cx,cy,w,h
-            cx = (xmax - xmin) / 2
-            cy = (ymax - ymin) / 2
+            cx = (xmax + xmin) / 2
+            cy = (ymax + ymin) / 2
             w = xmax - xmin
             h = ymax - ymin
             boxes.append([cx, cy, w, h, 0])  # 这里并没有对实例进行分类，只有一类，所有的实例都为分类 1，其 index 为 0

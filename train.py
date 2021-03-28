@@ -24,7 +24,7 @@ if __name__ == "__main__":
     Unfreeze_Epoch_LR = 1e-4
 
     Config = config.PennFudanConfig
-    Config = config.DefaultConfig
+    # Config = config.DefaultConfig
 
     # 创建 yolo 模型，训练前一定要修改 Config 里面的 classes 参数
     # 训练的是 YoloNet 不是 Yolo
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     print('Loading weights into state dict...')
 
     model_path = "weights/demo_darknet53_weights.pth"
-    model_path = "weights/demo_yolov3_weights.pth"
+    # model_path = "weights/demo_yolov3_weights.pth"
     device = torch.device('cuda' if Cuda and torch.cuda.is_available() else 'cpu')
 
     model_dict = model.state_dict()  # 模型权重
