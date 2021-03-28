@@ -122,8 +122,13 @@ class YoloV3(object):
         print(raw_boxes)
 
         for raw_box in raw_boxes:
-            print(raw_box)
-
+            (xmin, ymin, xmax, ymax, label) = raw_box
+            draw = ImageDraw.Draw(image)
+            draw.rectangle([xmin, ymin, xmax, ymax], outline="#00FF00")
+            # 绘制标签
+            font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
+            draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#00FF00")
+            del draw
 
         # 对每一个类别分别绘制预测框
         for index, label in enumerate(top_label):
@@ -146,7 +151,7 @@ class YoloV3(object):
 
         # 画框框
         draw = ImageDraw.Draw(image)
-        draw.rectangle([xmin, ymin, xmax, ymax])
+        draw.rectangle([xmin, ymin, xmax, ymax],outline="#FF0000")
         # 绘制标签
         font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
         draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")

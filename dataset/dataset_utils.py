@@ -76,11 +76,8 @@ class ScaleImageAndTarget(object):
         # 6. 变换 target
         scaled_target = raw_target.copy()
         scaled_target[:, 0:4] = raw_target[:, 0:4] * scale
-        print("scaled_target：",scaled_target)
         scaled_target[:, 0] += (scaled_width - nw) // 2
         scaled_target[:, 1] += (scaled_height - nh) // 2
-
-        print("scaled_target：",scaled_target)
 
         return new_image, scaled_target
 
@@ -140,15 +137,10 @@ def decode_tensord_target(config: dict, tensord_target: torch.Tensor) -> numpy.n
     raw_target[:, 2] *= config["image_width"]
     raw_target[:, 3] *= config["image_height"]
 
-    print("raw_target：",raw_target)
-
     raw_boxes = raw_target.copy()
     raw_boxes[:, 0] = numpy.around(raw_target[:, 0] - raw_target[:, 2] / 2)
     raw_boxes[:, 1] = numpy.around(raw_target[:, 1] - raw_target[:, 3] / 2)
     raw_boxes[:, 2] = numpy.around(raw_target[:, 0] + raw_target[:, 2] / 2)
     raw_boxes[:, 3] = numpy.around(raw_target[:, 1] + raw_target[:, 3] / 2)
-
-    print("raw_boxes：",raw_boxes)
-
 
     return raw_boxes.astype(numpy.int)

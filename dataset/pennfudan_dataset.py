@@ -77,7 +77,6 @@ class PennFudanDataset(torch.utils.data.Dataset):
             xmax = numpy.max(pos[1])
             ymin = numpy.min(pos[0])
             ymax = numpy.max(pos[0])
-            print("xmin,ymin,xmax,ymax:",xmin,ymin,xmax,ymax)
             # 左上和右下坐标，转化为中心坐标和宽高，即 raw_x, raw_y, raw_w, raw_h
             raw_x = (xmax + xmin) / 2
             raw_y = (ymax + ymin) / 2
@@ -85,8 +84,6 @@ class PennFudanDataset(torch.utils.data.Dataset):
             raw_h = ymax - ymin
             raw_target.append([raw_x, raw_y, raw_w, raw_h, 0])  # 这里并没有对实例进行分类，只有一类，所有的实例都为分类 1，其 index 为 0
         raw_target = numpy.asarray(raw_target)
-
-        print("raw_target:",raw_target)
 
         # 5. 执行数据变换
         scaled_image, scaled_target = self.transforms(raw_image, raw_target)
