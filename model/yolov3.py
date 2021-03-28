@@ -73,29 +73,29 @@ class YoloV3(object):
         image_raw_height = image_shape[1]
 
         # 给图像增加灰条，实现不失真的resize
-        crop_img, _ = yolo_utils.letterbox_image(
+        crop_image, _ = yolo_utils.letterbox_image(
             image,
             # 1000,
             self.config["image_width"],
             self.config["image_height"]
         )
         # width * height * RGB
-        crop_img.show()
-        # print(crop_img.size)
-        # print(crop_img.getpixel((500, 100)))
-        crop_img = numpy.array(crop_img)  # -> height * width * RGB
-        # print(crop_img[100][500])
+        crop_image.show()
+        # print(crop_image.size)
+        # print(crop_image.getpixel((500, 100)))
+        crop_image = numpy.array(crop_image)  # -> height * width * RGB
+        # print(crop_image[100][500])
 
-        # display_utils.show_numpy_image(crop_img, [0])
-        # display_utils.show_numpy_image(crop_img, [1])
-        # display_utils.show_numpy_image(crop_img, [2])
+        # display_utils.show_numpy_image(crop_image, [0])
+        # display_utils.show_numpy_image(crop_image, [1])
+        # display_utils.show_numpy_image(crop_image, [2])
 
-        # print(crop_img.shape)
+        # print(crop_image.shape)
 
-        photo = torchvision.transforms.ToTensor()(crop_img)
+        photo = torchvision.transforms.ToTensor()(crop_image)
 
         # 输入图像归一化到 0~1
-        # photo = numpy.array(crop_img, dtype=numpy.float32) / 255.0
+        # photo = numpy.array(crop_image, dtype=numpy.float32) / 255.0
 
         # print(photo.shape)
         # photo = numpy.transpose(photo, (2, 0, 1))  # -> channels(RGB) * height * width

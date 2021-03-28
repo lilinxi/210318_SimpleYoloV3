@@ -114,8 +114,27 @@ width, height = im.size
     - ndarray(tensor) 无法 torch.from_numpy
 
 26. The given NumPy array is not writeable
-    - It is caused by img = transforms.ToTensor()(img)
+    - It is caused by image = transforms.ToTensor()(image)
     - numpy.asarray(PIL.Image):   WRITEABLE : False
     - numpy.array(PIL.Image):   WRITEABLE : True
 
 27. functional.to_tensor == transforms.ToTensor(), transforms 包里还有很多变换
+
+28. * 和 **
+
+```python
+def fun(*args, **kwargs):
+   ...:     print(args)
+   ...:     print(kwargs)
+   ...:     
+fun(a)
+((1, 3),)
+{}
+fun(*a)
+(1, 3)
+{}
+a
+Out[52]: (1, 3)
+```
+
+29.         (image_width,image_height) = image.size, 内部存储是 h*w, numpy.array() 转化为 h*w

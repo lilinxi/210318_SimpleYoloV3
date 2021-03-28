@@ -1,9 +1,11 @@
 import os
 
 import numpy
-from PIL import Image
+import PIL.Image
 
 import torch.utils.data
+
+import dataset.dataset_utils
 
 
 # -----------------------------------------------------------------------------------------------------------#
@@ -21,66 +23,102 @@ import torch.utils.data
 
 
 class PennFudanDataset(torch.utils.data.Dataset):
-    def __init__(self, root: str, train: bool = True) -> None:
+    def __init__(self, config: dict, root: str, train: bool = True) -> None:
         """
+        :param config: YoloV3 的配置
         :param root: 数据集的根目录
-        :param transforms: 数据增强需要的变换
+        :param train: 是否是训练集，训练集包含额外的数据增强变换
         """
-        self.root = root  # 数据集的根目录
-        self.transforms = transforms  # 数据增强需要的变换
-        # 对所有的文件路径进行排序，确保图像和蒙版对齐
-        self.imgs = list(sorted(os.listdir(os.path.join(root, "PNGImages"))))  # 读取所有的图像的路径
-        self.masks = list(sorted(os.listdir(os.path.join(root, "PedMasks"))))  # 读取所有的蒙版的路径
+        super().__init__()
 
-    def __getitem__(self, idx: int) -> (numpy.ndarray, numpy.ndarray):  # 根据索引获取数据集中的数据
+        # 1. 初始化数据集根目录和数据变换
+        self.config = config
+        self.root: str = root
+        self.transforms: dataset.dataset_utils.Compose = dataset.dataset_utils.get_transforms(self.config, train)
+
+        # 2. 对所有的文件路径进行排序，确保图像和蒙版对齐
+        self.images_dir = os.path.join(root, "PNGImages")
+        self.masks_dir = os.path.join(root, "PedMasks")
+        self.images_name = list(sorted(os.listdir(self.images_dir)))
+        self.masks_name = list(sorted(os.listdir(self.masks_dir)))
+
+    def __getitem__(self, idx: int) -> (PIL.Image.Image, numpy.ndarray):
         """
         返回指定索引处的图片和标签
-        :param idx:
-        :return:
-            - image: Numpy( channel(RGB) * width * height )
-            - boxes: list([x, y, w, h, label])
+
+        :param idx: 索引
+        :return: (
+                    scaled_image: PIL.Image.Image -> width * height * RGB,
+                    scaled_target: numpy.ndarray -> true_box_num * (x, y, w, h, label)
+                )
         """
-        img_path = os.path.join(self.root, "PNGImages", self.imgs[idx])  # 加载图像索引下的路径
-        mask_path = os.path.join(self.root, "PedMasks", self.masks[idx])  # 加载蒙版索引下的路径
+        # 1. 拼接文件路径
+        image_path = os.path.join(self.images_dir, self.images_name[idx])
+        mask_path = os.path.join(self.masks_dir, self.masks_name[idx])
 
-        image = Image.open(img_path).convert("RGB")  # 读取图像，转化为 RGB
-        mask = Image.open(mask_path)  # 读取蒙版：0 为背景，非 0 为实例的掩码
+        # 2. 读取图像文件和蒙版文件
+        raw_image = PIL.Image.open(image_path).convert("RGB")  # 读取图像，转化为 RGB
+        mask = PIL.Image.open(mask_path)  # 读取蒙版，为灰度图：0 为背景，非 0 为实例的掩码
 
-        (image_height, image_width) = image.size
-
-        mask = numpy.array(mask)  # 蒙版图像转化为 numpy 数组
-        obj_ids = numpy.unique(mask)  # 获取所有的实例，每组相同的像素表示一个实例，（objects + 1, )
-        obj_ids = obj_ids[1:]  # 去除 0，0 表示背景，并不表示实例，（objects, )
+        # 3. 解析蒙版文件，对每个蒙版，获取一个二值掩码，得到列表
+        mask = numpy.array(mask)  # 蒙版图像转化为 numpy 数组，(w, h) -> (h, w)
+        obj_ids = numpy.unique(mask)  # 获取所有的实例，每组相同的像素表示一个实例，(objects + 1, )
+        obj_ids = obj_ids[1:]  # 去除 0，0 表示背景，并不表示实例，(objects, )
+        # (h, w) == (objects, 1, 1) -> (objects, h, w)
         masks = mask == obj_ids[:, None, None]  # 将 mask 转化为二值掩码的数组，每个实例一个二值掩码
-        # （w, h）==（objects, 1, 1) -> （objects, w, h）
 
-        # 对于每个二值掩码，获取其包围盒
+        # 4. 解析二值掩码，对于每个二值掩码，获取其包围盒，得到包围盒列表
         num_objs = len(obj_ids)  # 实例的数量
-        boxes = []  # 包围盒数组，和二值掩码数组对齐
+        raw_target = []  # 包围盒数组，和二值掩码数组对齐
         for i in range(num_objs):
-            pos = numpy.where(masks[i])  # 获取所有的掩码像素的坐标
+            pos = numpy.where(masks[i])  # 获取所有的掩码像素的坐标，pos: (h, w)
             # 获取掩码的包围盒的坐标
             xmin = numpy.min(pos[1])
             xmax = numpy.max(pos[1])
             ymin = numpy.min(pos[0])
             ymax = numpy.max(pos[0])
-            # 左上和右下坐标，转化为中心坐标和宽高，即 cx,cy,w,h
-            cx = (xmax - xmin) / 2
-            cy = (ymax - ymin) / 2
-            w = xmax - xmin
-            h = ymax - ymin
-            boxes.append([cx, cy, w, h, 0])  # 这里并没有对实例进行分类，只有一类，所有的实例都为分类 1，其 index 为 0
-        boxes = numpy.asarray(boxes)
+            # 左上和右下坐标，转化为中心坐标和宽高，即 raw_x, raw_y, raw_w, raw_h
+            raw_x = (xmax - xmin) / 2
+            raw_y = (ymax - ymin) / 2
+            raw_w = xmax - xmin
+            raw_h = ymax - ymin
+            raw_target.append([raw_x, raw_y, raw_w, raw_h, 0])  # 这里并没有对实例进行分类，只有一类，所有的实例都为分类 1，其 index 为 0
+        raw_target = numpy.asarray(raw_target)
 
-        # 如果有数组增强变换，执行变换
-        if self.transforms is not None:
-            image, boxes = self.transforms(image, boxes)
+        # 5. 执行数据变换
+        scaled_image, scaled_target = self.transforms(raw_image, raw_target)
 
         # 返回索引图像及其标签结果
-        return image, boxes
+        return scaled_image, scaled_target
 
     def __len__(self) -> int:  # 获取数据集的长度
-        return len(self.imgs)
+        return len(self.images_name)
+
+
+def get_pennfudan_dataloader(
+        config: dict,
+        root: str,
+        batch_size: int,
+        train: bool = False,
+        shuffle: bool = False,
+        num_workers: int = 0,
+) -> torch.utils.data.DataLoader:
+    pennfudan_dataset = PennFudanDataset(
+        config=config,
+        root=root,
+        train=train
+    )
+
+    pennfudan_dataloader = torch.utils.data.DataLoader(
+        pennfudan_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        collate_fn=dataset.dataset_utils.collate_fn,
+        drop_last=True
+    )
+
+    return pennfudan_dataloader
 
 
 # -----------------------------------------------------------------------------------------------------------#
@@ -88,25 +126,21 @@ class PennFudanDataset(torch.utils.data.Dataset):
 # -----------------------------------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
-    from dataset.dataset_utils import collate_fn
+    import model.config
 
     EPOCH = 2
     BATCH_SIZE = 2
 
-    dataset = PennFudanDataset('/Users/limengfan/Dataset/PennFudanPed', None)
-
-    data_loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
-        num_workers=0,  # 表示开启多少个线程数去加载你的数据，默认为0，代表只使用主进程
-        collate_fn=collate_fn,
-        drop_last=True)
+    pennfudan_dataloader = get_pennfudan_dataloader(
+        config=model.config.PennFudanConfig,
+        root='/Users/limengfan/Dataset/PennFudanPed',
+        batch_size=BATCH_SIZE
+    )
 
     for epoch in range(EPOCH):
         print("Epoch:", epoch)
-        for step, (images, targets) in enumerate(data_loader):  # 分配 batch data, normalize x when iterate train_loader
+        for step, (var_images, var_target_list) in enumerate(pennfudan_dataloader):
             print("step:", step)
-            print(images)
-            [print(target) for target in targets]
+            print(var_images)
+            print(var_target_list)
             exit(-1)
