@@ -1,4 +1,4 @@
-# 从 YoloV3 中进阶 Pytorch
+# 从 YoloV3 源码中进阶 Pytorch
 
 pytorch == 1.6.0（nms 需要）
 
