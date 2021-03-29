@@ -1,4 +1,3 @@
-
 if __name__ == "__main__":
     import conf.config
     import dataset.pennfudan_dataset

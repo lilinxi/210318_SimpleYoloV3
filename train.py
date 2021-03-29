@@ -54,10 +54,10 @@ if __name__ == "__main__":
     net = model.train()
 
     # 使用 Cuda 则开启并行化
-    # if Cuda:
-    #     net = torch.nn.DataParallel(net)
-    #     cudnn.benchmark = True
-    #     net = net.cuda()
+    if Cuda:
+        net = torch.nn.DataParallel(net)
+        cudnn.benchmark = True
+        net = net.cuda()
 
     # 建立loss函数
     yolo_losses = []

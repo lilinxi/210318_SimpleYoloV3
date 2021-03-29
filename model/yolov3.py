@@ -115,12 +115,16 @@ class YoloV3(object):
             (numpy.transpose(tensord_image.numpy(), (1, 2, 0)) * 255).astype(numpy.uint8),
             mode="RGB"
         )
-        print(tensord_target.shape)
-        print(tensord_target)
 
+        # -----------------------------------------------------------------------------------------------------------#
+        # 绘制真值框
+        # -----------------------------------------------------------------------------------------------------------#
+
+        # 解析真值框
         raw_boxes = dataset.dataset_utils.decode_tensord_target(self.config, tensord_target)
-        print(raw_boxes)
+        print("raw_boxes:", raw_boxes)
 
+        # 绘制真值框（绿）
         for raw_box in raw_boxes:
             (xmin, ymin, xmax, ymax, label) = raw_box
             draw = ImageDraw.Draw(image)
@@ -130,32 +134,43 @@ class YoloV3(object):
             draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#00FF00")
             del draw
 
-        # 对每一个类别分别绘制预测框
-        for index, label in enumerate(top_label):
-            ymin, xmin, ymax, xmax = top_boxes[index]
+        # -----------------------------------------------------------------------------------------------------------#
+        # 绘制预测框
+        # -----------------------------------------------------------------------------------------------------------#
+        print("predict_boxes:", top_boxes)
 
-        print("raw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
-
-        # 绘制一个稍大一点的框框
-        ymin = ymin - 5
-        xmin = xmin - 5
-        ymax = ymax + 5
-        xmax = xmax + 5
-        # 过滤框大小
-        ymin = max(0, numpy.floor(ymin + 0.5).astype('int32'))
-        xmin = max(0, numpy.floor(xmin + 0.5).astype('int32'))
-        ymax = min(416, numpy.floor(ymax + 0.5).astype('int32'))
-        xmax = min(416, numpy.floor(xmax + 0.5).astype('int32'))
-
-        print("draw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
-
-        # 画框框
-        draw = ImageDraw.Draw(image)
-        draw.rectangle([xmin, ymin, xmax, ymax],outline="#FF0000")
-        # 绘制标签
-        font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
-        draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
-        del draw
+        # 对每一个类别分别绘制预测框（红）
+        for box in numpy.around(numpy.asarray(batch_detections)).astype(numpy.int):
+            (xmin, ymin, xmax, ymax, _, _, label) = box
+            draw = ImageDraw.Draw(image)
+            draw.rectangle([xmin, ymin, xmax, ymax], outline="#FF0000")
+            # 绘制标签
+            font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
+            draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
+            del draw
+        # for index, label in enumerate(top_label):
+        # xmin, ymin, xmax, ymax = top_boxes[index]
+        #
+        # # 绘制一个稍大一点的框框
+        # ymin = ymin - 5
+        # xmin = xmin - 5
+        # ymax = ymax + 5
+        # xmax = xmax + 5
+        # # 过滤框大小
+        # ymin = max(0, numpy.floor(ymin + 0.5).astype('int32'))
+        # xmin = max(0, numpy.floor(xmin + 0.5).astype('int32'))
+        # ymax = min(self.config["image_height"], numpy.floor(ymax + 0.5).astype('int32'))
+        # xmax = min(self.config["image_width"], numpy.floor(xmax + 0.5).astype('int32'))
+        #
+        # print("draw: box:", xmin, ymin, xmax, ymax, "label:", self.config["labels"][label])
+        #
+        # # 画框框
+        # draw = ImageDraw.Draw(image)
+        # draw.rectangle([xmin, ymin, xmax, ymax], outline="#FF0000")
+        # # 绘制标签
+        # font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
+        # draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
+        # del draw
 
         return image
 
