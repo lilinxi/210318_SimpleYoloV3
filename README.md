@@ -265,7 +265,11 @@ GPU tensor 不能直接转为 numpy 数组，必须先转到 CPU tensor：`Tenso
 
 ## 损失函数设计
 
-4. 交叉熵损失函数
+### 交叉熵损失函数：torch.nn.BCELoss()
+
+[参考文章：损失函数 - 交叉熵损失函数](https://zhuanlan.zhihu.com/p/35709485)
+
+![](./readme_images/BCELoss.png)
 
 ---
 
@@ -279,50 +283,144 @@ model.eval()，pytorch 会自动把 BN 和 DropOut 固定住，不会取平均�
 
 - model.eval() 会固定 BN 的 running_mean 和 running_var 参数。
 
-6. 修改模型权重的名称：
+### 预训练权重根据模型结构修改名称
 
 ```python
 from collections import OrderedDict
-new_dict = OrderedDict()
-for key in model.state_dict():
-	if key == "features.0.weight":
-		new_dict["features.0.inner_conv2d.weight"] = model.state_dict()[key]
-		new_dict["features.0.weight"] = model.state_dict()[key]
-	elif key == "features.0.bias":
-		new_dict["features.0.inner_conv2d.bias"] = model.state_dict()[key]
-		new_dict["features.0.bias"] = model.state_dict()[key]
-	elif key == "features.4.weight":
-		new_dict["features.4.inner_conv2d.weight"] = model.state_dict()[key]
-		new_dict["features.4.weight"] = model.state_dict()[key]
-	elif key == "features.4.bias":
-		new_dict["features.4.inner_conv2d.bias"] = model.state_dict()[key]
-		new_dict["features.4.bias"] = model.state_dict()[key]
-	elif key == "features.8.weight":
-		new_dict["features.8.inner_conv2d.weight"] = model.state_dict()[key]
-		new_dict["features.8.weight"] = model.state_dict()[key]
-	elif key == "features.8.bias":
-		new_dict["features.8.inner_conv2d.bias"] = model.state_dict()[key]
-		new_dict["features.8.bias"] = model.state_dict()[key]
-	elif key == "features.12.weight":
-		new_dict["features.12.inner_conv2d.weight"] = model.state_dict()[key]
-		new_dict["features.12.weight"] = model.state_dict()[key]
-	elif key == "features.12.bias":
-		new_dict["features.12.inner_conv2d.bias"] = model.state_dict()[key]
-		new_dict["features.12.bias"] = model.state_dict()[key]
-	else:
-		new_dict[key] = model.state_dict()[key]
+
+import torch
+
+if __name__ == "__main__":
+    # weights_name = "yolov3"
+    weights_name = "darknet53"
+
+    # 读取原始权重列表
+    raw_weights_file = open("./raw_" + weights_name + "_weights_state_dict.txt", "r")
+    raw_weights_lines = raw_weights_file.readlines()
+    print("raw_weights_lines:", len(raw_weights_lines))
+    # 读取新的权重列表
+    demo_weights_file = open("./demo_" + weights_name + "_weights_state_dict.txt", "r")
+    demo_weights_lines = demo_weights_file.readlines()
+    print("demo_weights_lines:", len(demo_weights_lines))
+    # 去除无效映射
+    demo_weights_lines = [line for line in demo_weights_lines if not "num_batches_tracked" in line]
+    print("demo_weights_lines:", len(demo_weights_lines))
+    # 去除末尾换行
+    raw_weights_lines = [line[:-1] for line in raw_weights_lines]
+    demo_weights_lines = [line[:-1] for line in demo_weights_lines]
+
+    assert len(raw_weights_lines) == len(demo_weights_lines)
+
+    # 读取原始权重
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    raw_weights: dict = torch.load("./raw_" + weights_name + "_weights.pth", map_location=device)
+    # 一一映射
+    demo_weights: dict = OrderedDict()
+    for i, raw_key in enumerate(raw_weights_lines):
+        demo_key = demo_weights_lines[i]
+        demo_weights[demo_key] = raw_weights[raw_key]
+
+    # 保存新的权重
+    torch.save(demo_weights, "./demo_" + weights_name + "_weights.pth")
 ```
 
-7. 权值初始化：https://blog.csdn.net/hyk_1996/article/details/82118797
+### 权值初始化
 
-11. nn.DataParallel 的坑
+[参考文章：卷积神经网络的权值初始化方法](https://blog.csdn.net/hyk_1996/article/details/82118797)
 
-21. DataLoader在数据集上提供单进程或多进程的迭代器，几个关键的参数意思：
-    - shuffle：设置为True的时候，每个世代都会打乱数据集
-    - collate_fn：如何取样本的，我们可以定义自己的函数来准确地实现想要的功能
-    - drop_last：告诉如何处理数据集长度除于batch_size余下的数据。True就抛弃，否则保留
-    - num_workers=0,  # 表示开启多少个线程数去加载你的数据，默认为0，代表只使用主进程
+#### 卷积层
+
+1. 高斯初始化：从均值为0，方差为1的高斯分布中采样，作为初始权值。
+
+```python
+torch.nn.init.normal_(tensor, mean=0, std=1)
+```
+
+2. kaiming 高斯初始化：使得每一卷积层的输出的方差都为 1。
+    - a 为 Relu 或 Leaky Relu 的负半轴斜率。
+    - n_l 为输入的维数，即 n_l = 卷积核边长^2 × channel数。
     
+```python
+torch.nn.init.kaiming_normal_(tensor, a=0, mode='fan_in', nonlinearity='leaky_relu')
+```
+
+3. 保证输入输出的方差不变。
+    - 其中 fan_in 和 fan_out 是分别权值张量的输入和输出元素数目。
+    - 在 tanh 激活函数上有很好的效果，但不适用于ReLU激活函数。
+
+```python
+torch.nn.init.xavier_normal_(tensor, gain=1)
+```
+
+#### 批次标准化层
+
+- 对于 scale 因子 γ，初始化为 1；
+- 对于 shift 因子 β，初始化为 0。
+
+```
+for m in self.modules():
+    if isinstance(m, nn.BatchNorm2d):
+        m.weight.data.fill_(1)
+        m.bias.data.zero_()
+```
+
+#### 全连接层
+
+1. 高斯分布
+2. 均匀分布
+3. 常量
+4. Orthogonal：用随机正交矩阵初始化。
+5. Sparse：用稀疏矩阵初始化。
+6. TruncatedNormal：截尾高斯分布，类似于高斯分布，位于均值两个标准差以外的数据将会被丢弃并重新生成，形成截尾分布。
+
+### torch.nn.DataParallel
+
+[参考文章：Pytorch 的 nn.DataParallel](https://zhuanlan.zhihu.com/p/102697821)
+
+1. 网络结构并行化
+
+```python
+device_ids = [0, 1]
+net = torch.nn.DataParallel(net, device_ids=device_ids)
+```
+
+2. 训练过程并行化
+
+```python
+optimizer = torch.optim.SGD(net.parameters(), lr=lr)
+optimizer = nn.DataParallel(optimizer, device_ids=device_ids)
+```
+
+3. 使用`.module`来得到实际的模型和优化器
+
+```python
+# 保存模型：
+torch.save(net.module.state_dict(), path)
+# 加载模型：
+net=nn.DataParallel(Resnet18())
+net.load_state_dict(torch.load(path))
+net=net.module
+# 优化器使用：
+optimizer.step() --> optimizer.module.step()
+```
+
+4. 指定程序可见显卡的物理编号（物理编号为 2，3；程序内部逻辑编号仍为 1，2）
+
+```python
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
+```
+
+### torch.utils.data.DataLoader：在数据集上提供单进程或多进程的迭代器
+
+关键参数：
+
+- shuffle：设置为 True 的时候，每个世代都会打乱数据集。
+- collate_fn：如何取样本的，我们可以定义自己的函数来准确地实现想要的功能。
+- drop_last：告诉如何处理数据集长度除于 batch_size 余下的数据。True就抛弃，否则保留。
+- num_workers=0：表示开启多少个线程数去加载你的数据，默认为0，代表只使用主进程。
+
+`DataLoader.shuffle = True`时每次遍历数据集会打乱顺序，在测试代码时可以设置`torch.manual_seed(1)`，确保每次的伪随机数相同以便于问题的复现。
 
 ### torch.multiprocessing.freeze_support()
 
@@ -352,35 +450,39 @@ if __name__ == '__main__':
     torch.multiprocessing.freeze_support()
 ```
 
-### DataLoader.shuffle = True
-
-每次遍历数据集会打乱顺序，在测试代码时可以设置`torch.manual_seed(1)`，确保每次的伪随机数相同以便于问题的复现。
-
 ---
 
 ## 输入输出变换
 
-3. BCHW 和 BHWC：设计网络时充分考虑两种格式，最好能灵活切换，在 GPU 上训练时使用 NCHW 格式，在 CPU 上做预测时使用 NHWC 格式。
+### BCHW 和 BHWC
 
-22. BCHW 还是 BCWH，RGB 还是 BGR
-    - OpenCV默认通道为BGR，PIL 是 RGB
-    - Pytorch 使用 RGB
-    - BCHW GPU 训练
-    - ToTensor：ToTensor()接收PIL格式的数据, 或者是直接从PIL转来的np.ndarray格式数据, 只要保证进来的数据取值范围是[0, 255], 形状是[h, w, c], 像素顺序是RGB, 它就会帮你做下面的事情
-        - 取值范围[0, 255] / 255.0 => [0, 1.0], 数据格式从int8变成了float32
-        - 形状(shape)转为[c, h, w]
-        - 像素顺序依旧是RGB
-        - [Pytorch数据前后处理整理](https://www.jianshu.com/p/c0ba27e392ff)
+![](./readme_images/bchw.png)
+
+BCHW 和 BHWC：设计网络时充分考虑两种格式，最好能灵活切换，在 GPU 上训练时使用 NCHW 格式，在 CPU 上做预测时使用 NHWC 格式。
+
+目前的主流 ML 框架对 NCHW 和 NHWC 数据格式做了支持，有些框架可以支持两种且用户未做设置时有一个缺省值：
+
+- TensorFlow：缺省NHWC，GPU也支持NCHW
+- Caffe：NCHW
+- PyTorch：NCHW
+ 
+### RGB 和 BGR
+
+OpenCV 默认通道为 BGR，PIL 为 RGB
+
+若深度学习框架使用 OpenCV，则为 BGR；Pytorch 使用 PIL，所以为 RGB。
        
 > 问题：为什么深度学习中普遍用BRG描述图像，而非RGB通道？
+>
 > 答1：因为caffe，作为最早最流行的一批库的代表，用了opencv，而opencv默认通道是bgr的。这是opencv的入门大坑之一，bgr是个历史遗留问题，为了兼容早年的某些硬件。其实你自己训练完全可以用rgb，新库也基本没了bgr还是rgb这个问题，就是切换下顺序。但如果你要用一些老的训练好的模型，就得兼容老模型的bgr。
+>
 > 答2：因为OpenCV默认通道为BGR，至于为什么用BGR，可能是因为当时比较流行BGR，以至于后来RGB变为主流后，也不方便改了，就一直沿用BGR。而caffe又是用了opencv的，所以没办法。智能外部转换一下。
        
 ### torchvision.transforms.functional.to_tensor() 和 torchvision.transforms.ToTensor()()
 
 1. Convert a `PIL Image` or `numpy.ndarray` to tensor.
 2. ToTensor()() 为 callable class，to_tensor() 为 function，ToTensor()() 内部调用了 to_tensor()
-3. 内部执行逻辑为：h * w * rgb -> rgb * h * w，然后归一化
+3. 内部执行逻辑为：h * w * rgb -> rgb * h * w，然后归一化（数据格式从 numpy.uint8 变成了 torch.float32)
 
 ```python
 img = torch.from_numpy(pic.transpose((2, 0, 1)))
@@ -388,5 +490,30 @@ return img.float().div(255)
 ```
 
 > transforms 包里还有很多变换，可用于训练集的增强变换。
+
+### ToTensor() 和 ToPILImage()
+
+####  PIL-> tensor -> PIL
+
+```python
+# PIL-> tensor -> PIL
+from torchvision.transforms import ToPILImage
+
+PIL_img = Image.open('test_pic.jpeg')
+tensor_from_PIL = ToTensor()(PIL_img)
+img = ToPILImage()(tensor_from_PIL)
+```
+
+#### PIL -> np.ndarray -> tensor -> PIL
+
+```python
+# PIL -> np.ndarray -> tensor -> PIL
+from torchvision.transforms import ToPILImage
+
+PIL_img = Image.open('test_pic.jpeg')
+np_img = np.asarray(PIL_img)
+tensor_from_np = ToTensor()(np_img)
+img = ToPILImage()(tensor_from_np)
+```
 
 ---
