@@ -141,8 +141,8 @@ if __name__ == "__main__":
     from conf import config
 
     yolov3 = YoloV3Net(config.DefaultConfig)
-    for key in yolov3.state_dict():
-        print(key)
+    for key, value in yolov3.state_dict().items():
+        print(key, value.shape)
 
     print(yolov3)
 

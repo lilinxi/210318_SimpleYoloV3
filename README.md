@@ -515,6 +515,25 @@ if __name__ == '__main__':
     torch.multiprocessing.freeze_support()
 ```
 
+### optimizer.param_groups[0]
+
+optimizer.param_groups：是长度为2的list，其中的元素是2个字典。
+
+- optimizer.param_groups[0]：长度为6的字典，包括[‘amsgrad’, ‘params’, ‘lr’, ‘betas’, ‘weight_decay’, ‘eps’]这6个参数；
+- optimizer.param_groups[1]：好像是表示优化器的状态的一个字典。
+
+### lr_scheduler 学习率调整器
+
+#### lr_scheduler.StepLR
+
+```python
+class torch.optim.lr_scheduler.StepLR(optimizer, step_size, gamma=0.1, last_epoch=-1)
+```
+
+等间隔调整学习率，调整倍数为 gamma 倍，调整间隔为 step_size。
+
+scheduler.step() 按照 Pytorch 的定义是用来更新优化器的学习率的，一般是按照 epoch 为单位进行更换，即多少个 epoch 后更换一次学习率，因而 scheduler.step() 放在epoch这个大循环下。
+
 ---
 
 ## 输入输出变换

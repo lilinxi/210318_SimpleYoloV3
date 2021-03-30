@@ -21,7 +21,7 @@ def get_lr(optimizer):
 
 
 def fit_ont_epoch(net: yolov3net.YoloV3Net,
-                  yolo_losses: List[yolov3loss.YoloLoss],
+                  yolo_losses:yolov3loss.YoloLoss,
                   optimizer: optim.Optimizer,
                   epoch: int, batch_num: int, batch_num_val: int, Epoch: int,
                   train_data_loader: data.DataLoader, validate_data_loader: data.DataLoader,

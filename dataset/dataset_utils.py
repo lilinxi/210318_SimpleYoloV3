@@ -38,8 +38,7 @@ def get_transforms(config: dict, train: bool) -> Compose:
 
 class ScaleImageAndTarget(object):
     """
-    target 和 image 的 等比例放缩，target 归一化
-    width * height * RGB -> channels(RGB) * width * height
+    target 和 image 的 等比例放缩
     """
 
     def __init__(self, config: dict) -> None:
@@ -84,7 +83,7 @@ class ScaleImageAndTarget(object):
 
 class NormImageAndTarget(object):
     """
-    target 和 image 的 等比例放缩，target 归一化
+    target 和 image 的 归一化
     """
 
     def __init__(self, config: dict) -> None:
@@ -108,8 +107,7 @@ class NormImageAndTarget(object):
 
 def collate_fn(batch: List[tuple]) -> (torch.Tensor, torch.Tensor):
     """
-    对一个批次的数据进行解包后打包
-    数据集工具函数
+    数据集工具函数，对一个批次的数据进行解包后打包
     :param batch:
     :return:
     """
@@ -122,4 +120,3 @@ def collate_fn(batch: List[tuple]) -> (torch.Tensor, torch.Tensor):
     tensord_target_list = [torch.as_tensor(norm_target) for norm_target in norm_targets]
 
     return tensord_images, tensord_target_list
-
