@@ -99,11 +99,10 @@ class YoloV3(object):
             # 进行非极大抑制
             # (batch, 13*13*3 + 26*26*3 + 52*52*3 = 10647, (4+1+classes)) ->
             # (box_num, x1 + y1 + x2 + y2 + obj_conf + class_conf + class_label = 7)
-            batch_detections = yolo_utils.non_max_suppression(
+            batch_detections = model.yolov3decode.non_max_suppression(
                 output,  # 预测框列表
-                self.config["classes"],  # 类别数目
-                conf_threshold=self.config["confidence"],  # 置信度
-                nms_iou_threshold=self.config["iou"]  # iou 阈值
+                conf_threshold=self.config["conf_threshold"],  # 置信度
+                nms_iou_threshold=self.config["nms_iou_threshold"]  # iou 阈值
             )
 
             # 检测图片时一个批次就一个图片，因此取出第 0 个

@@ -1,11 +1,11 @@
 from __future__ import division
 
-import numpy
-from PIL import Image
-
 import torch
 import torch.nn as nn
 import torchvision.ops
+
+from typing import List
+
 
 # -----------------------------------------------------------------------------------------------------------#
 # class DecodeBox(nn.Module) # 将预测结果解析为预测框
@@ -24,7 +24,6 @@ import torchvision.ops
 #         image_raw_width, image_raw_height):
 #     从灰条检测图像中恢复原始的检测框
 # -----------------------------------------------------------------------------------------------------------#
-from typing import List
 
 
 class YoloV3Decode(nn.Module):
@@ -33,21 +32,12 @@ class YoloV3Decode(nn.Module):
     """
 
     def __init__(self, config: dict) -> None:
-        """
-        :param anchors: 解析当前预测层使用的锚框
-        :param classes: 总分类数目
-        :param image_height: 处理前图像高
-        :param image_width: 处理前图像宽
-        :param cuda: 是否使用 cuda
-        """
         super().__init__()
 
         self.anchors = config["anchors"]
         self.anchors_13 = self.anchors[0]
         self.anchors_26 = self.anchors[1]
         self.anchors_52 = self.anchors[2]
-        # self.cur_anchors = None
-        # self.cur_anchors_num = None
 
         self.classes = config["classes"]
         self.bbox_attrs = 4 + 1 + self.classes
@@ -58,10 +48,6 @@ class YoloV3Decode(nn.Module):
         self.cuda = config["cuda"]
 
     def forward(self, predict_feature: torch.Tensor) -> torch.Tensor:
-        """
-        :param predict_feature: 解析前的特征层
-        :return: 解析后的预测框
-        """
         # 1. 解析预测网络输出的特征层的各维度属性
         batch_size = predict_feature.shape[0]
         predict_feature_height = predict_feature.shape[2]
@@ -122,6 +108,9 @@ class YoloV3Decode(nn.Module):
         # 6.3 乘以步长
         strided_predict_x = grid_predict_x * stride_width
         strided_predict_y = grid_predict_y * stride_height
+        # 6.4 改变维度
+        viewd_predict_x = strided_predict_x.view(batch_size, -1, 1)
+        viewd_predict_y = strided_predict_y.view(batch_size, -1, 1)
 
         # 7. 解析 wh
         # 7.1 构造 anchor tensor
@@ -134,36 +123,48 @@ class YoloV3Decode(nn.Module):
             repeat(1, 1, predict_feature_height * predict_feature_width). \
             view(predict_h.shape)
         # 7.2 乘以 anchor tensor
-        anchord_width = torch.exp(predict_w) * grid_anchor_width
-        anchord_height = torch.exp(predict_h) * grid_anchor_height
+        anchord_predict_width = torch.exp(predict_w) * grid_anchor_width
+        anchord_predict_height = torch.exp(predict_h) * grid_anchor_height
+        # 7.3 改变维度
+        viewd_anchord_predict_width = anchord_predict_width.view(batch_size, -1, 1)
+        viewd_anchord_predict_height = anchord_predict_height.view(batch_size, -1, 1)
+        # 7.4 除以 2
+        half_viewd_anchord_predict_width = torch.mul(viewd_anchord_predict_width, 0.5)
+        half_viewd_anchord_predict_height = torch.mul(viewd_anchord_predict_height, 0.5)
 
         # 8. 解析 obj_conf
         norm_predict_obj_conf = torch.sigmoid(predict_obj_conf)
+        viewd_predict_obj_conf = norm_predict_obj_conf.view(batch_size, -1, 1)
 
         # 9. 解析 class_conf_list
         norm_predict_class_conf_list = torch.sigmoid(predict_class_conf_list)
+        viewd_predict_class_conf_list = norm_predict_class_conf_list.view(batch_size, -1, self.classes)
+        norm_predict_class_conf, predict_class_label = torch.max(viewd_predict_class_conf_list, 2, keepdim=True)
 
-        # 10. 拼接解析结果
+        # 10. 拼接解析结果，拼接最后一个维度
         predict_bbox_attrs = torch.cat(
             (
-                strided_predict_x.view(batch_size, -1, 1),
-                strided_predict_y.view(batch_size, -1, 1),
-                anchord_width.view(batch_size, -1, 1),
-                anchord_height.view(batch_size, -1, 1),
-                norm_predict_obj_conf.view(batch_size, -1, 1),
-                norm_predict_class_conf_list.view(batch_size, -1, self.classes)
+                viewd_predict_x - half_viewd_anchord_predict_width,
+                viewd_predict_y - half_viewd_anchord_predict_height,
+                viewd_predict_x + half_viewd_anchord_predict_width,
+                viewd_predict_y + half_viewd_anchord_predict_height,
+                viewd_predict_obj_conf,
+                # viewd_predict_class_conf_list,
+                norm_predict_class_conf,
+                predict_class_label,
             ), -1)
 
         return predict_bbox_attrs
 
 
 def non_max_suppression(
-        prediction: torch.Tensor, classes: int,
-        conf_threshold: float = 0.5, nms_iou_threshold: float = 0.4) -> List[torch.Tensor]:
+        predict_bbox_attrs: torch.Tensor,
+        conf_threshold: float = 0.5,
+        nms_iou_threshold: float = 0.4
+) -> List[torch.Tensor]:
     """
-    进行非极大值抑制，并将预测结果的格式转换成左上角右下角的格式。
+    进行非极大值抑制
 
-    预测结果格式转换
     置信度筛选
     nms 筛选
 
@@ -175,34 +176,24 @@ def non_max_suppression(
         prediction_after_nms: batch_size * (box_num, xmin + ymin + xmax + ymax + obj_conf + class_conf + class_label = 7)
     """
 
-    # 复制原预测框列表，将预测框格式改为左上角右下角的格式
-    box_corner = prediction.new(prediction.shape)
-    box_corner[:, :, 0] = prediction[:, :, 0] - prediction[:, :, 2] / 2  # x - w/2 = xmin
-    box_corner[:, :, 1] = prediction[:, :, 1] - prediction[:, :, 3] / 2  # y - h/2 = ymin
-    box_corner[:, :, 2] = prediction[:, :, 0] + prediction[:, :, 2] / 2  # x + w/2 = xmax
-    box_corner[:, :, 3] = prediction[:, :, 1] + prediction[:, :, 3] / 2  # y + h/2 = ymax
+    # 1. 返回值为长度为 batch_size 的列表，每张图片做单独的过滤处理
+    predict_bbox_attrs_after_nms = [None] * predict_bbox_attrs.shape[0]
 
-    # 将新格式替换原预测框列表
-    prediction[:, :, :4] = box_corner[:, :, :4]
+    # 2. 遍历每张图片和预测数据
+    for image_index, image_predict_bbox_attrs in enumerate(predict_bbox_attrs):
+        # 3. 预测种类得分的最大值作为置信度, 预测种类得分的最大值的索引作为预测标签
+        # image_predict_class_conf_list = image_predict_bbox_attrs[:, 5:]
+        # class_conf, class_label = torch.max(image_predict_class_conf_list, 1, keepdim=True)
+        class_conf, class_label = torch.unsqueeze(image_predict_bbox_attrs[:,5],1),torch.unsqueeze(image_predict_bbox_attrs[:,6],1)
 
-    # 创建返回结果列表，len 为 batch_size
-    batch_size = len(prediction)
-    prediction_after_nms = [None] * batch_size
-
-    for image_index, image_prediction in enumerate(prediction):  # 遍历每张图片和预测数据
-        # 对种类预测部分取max。
-        image_classes_prediction = image_prediction[:, 5:5 + classes]
-        class_conf, class_label = torch.max(image_classes_prediction, 1, keepdim=True)
-        # class_conf: 预测种类得分的最大值作为置信度
-        # class_label: 预测种类得分的最大值的索引作为预测标签
 
         # 利用置信度进行第一轮筛选
         # (10647, 1) * (10647, 1) -> (10647, 1) -> (10647)
         # obj_conf * class_conf >= conf_threshold
-        conf_mask = (image_prediction[:, 4] * class_conf[:, 0] >= conf_threshold).squeeze()
+        conf_mask = (image_predict_bbox_attrs[:, 4] * class_conf[:, 0] >= conf_threshold).squeeze()
 
         # 根据置信度进行预测结果的筛选，只保留一小部分预测框
-        image_prediction_after_conf_threshold = image_prediction[
+        image_prediction_after_conf_threshold = image_predict_bbox_attrs[
             conf_mask]  # torch.Size([10647, 85]) -> (threshold_size, 85)
         class_conf_after_conf_threshold = class_conf[conf_mask]  # torch.Size([10647, 1]) -> (threshold_size, 1)
         class_label_after_conf_threshold = class_label[conf_mask]  # torch.Size([10647, 1]) -> (threshold_size, 1)
@@ -245,10 +236,10 @@ def non_max_suppression(
             max_detections_in_label = detections_in_label[keep]
 
             # 添加筛选之后的预测结果，直接添加或者拼接在后面
-            if prediction_after_nms[image_index] is None:
-                prediction_after_nms[image_index] = max_detections_in_label
+            if predict_bbox_attrs_after_nms[image_index] is None:
+                predict_bbox_attrs_after_nms[image_index] = max_detections_in_label
             else:
-                prediction_after_nms[image_index] = torch.cat(
-                    (prediction_after_nms[image_index], max_detections_in_label), 0)
+                predict_bbox_attrs_after_nms[image_index] = torch.cat(
+                    (predict_bbox_attrs_after_nms[image_index], max_detections_in_label), 0)
 
-    return prediction_after_nms
+    return predict_bbox_attrs_after_nms
