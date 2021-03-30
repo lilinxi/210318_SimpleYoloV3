@@ -11,11 +11,11 @@ import dataset.pennfudan_dataset
 
 def train_one_epoch(
         yolov3_net: model.yolov3net.YoloV3Net,  # 网络模型
-        yolov3_losses: model.yolov3loss.YoloLoss,  # 损失函数
+        yolov3_losses: model.yolov3loss.YoloV3Loss,  # 损失函数
         optimizer: torch.optim.Optimizer,  # 优化器
         epoch: int,  # 当前 epoch
-        batch_num: int,  # 训练集的批次数，即为训练集大小除以批次大小
-        batch_num_val: int,  # 验证集的批次数，即为验证集大小除以批次大小
+        train_batch_num: int,  # 训练集的批次数，即为训练集大小除以批次大小
+        validate_batch_num: int,  # 验证集的批次数，即为验证集大小除以批次大小
         total_epoch: int,  # 总批次
         train_data_loader: torch.utils.data.dataloader.DataLoader,  # 训练集
         validate_data_loader: torch.utils.data.dataloader.DataLoader,  # 验证集
@@ -30,88 +30,30 @@ def train_one_epoch(
     # -----------------------------------------------------------------------------------------------------------#
     total_train_loss = 0  # 当前 epoch 的训练总损失
 
-    # step1.1, 打开网络训练模式
+    # 1. 打开网络训练模式
     yolov3_net = yolov3_net.train()
 
-    # step1.3 加载 tadm 进度条，
-    with tqdm.tqdm(total=batch_num, desc=f'Epoch {epoch + 1}/{total_epoch}', postfix=dict) as pbar:
-        # step1.4 批次遍历数据集
-        for iteration, (images, targets) in enumerate(train_data_loader):
-            #     if iteration >= batch_num:  # 忽略最后一个不满 batch_size 的
-            #         break
-            #
-            #     """
-            #     print(type(images))  # <class 'tuple'>
-            #     print(type(images[0]))  # <class 'numpy.ndarray'>
-            #     print(images[0].shape)  # (3, 416, 416)
-            #     """
-            #
-            #     """
-            #     print(type(targets))  # <class 'tuple'>
-            #     print(type(targets[0]))  # <class 'list'>
-            #     print(type(targets[0][0]))  # <class 'list'>
-            #     print(type(targets[0][0][0]))  # <class 'list'>
-            #     for i, target in enumerate(targets): # 因为每张图片的 box 数目不同，所以各个标注的维度不同
-            #         print(target)
-            #     print(targets[0])  # [[159, 181, 301, 430, 1], [419, 170, 534, 485, 1]]
-            #     """
-            #
-            #     # step1.5 图片 tuple 转化为 tensor Variable
-            #     with torch.no_grad():  # 图片的转化过程中，没有梯度传递
-            #         if cuda and torch.cuda.is_available():
-            #             images = Variable(torch.as_tensor(images).type(torch.FloatTensor)).cuda()  # TODO：写到 collate_fn 里
-            #             targets = [Variable(torch.as_tensor(ann).type(torch.FloatTensor)).cuda() for ann in targets]
-            #         else:
-            #             images = Variable(torch.as_tensor(images).type(torch.FloatTensor))
-            #             targets = [Variable(torch.as_tensor(ann).type(torch.FloatTensor)) for ann in targets]
-            #
-            #     """
-            #     print(type(images))  # <class 'torch.Tensor'>
-            #     print(images.shape)  # torch.Size([16, 3, 416, 416])
-            #     print(images.type())  # torch.FloatTensor
-            #     """
-            #
-            #     """
-            #     print(type(targets))  # <class 'list'>
-            #     print(type(targets[0]))  # <class 'torch.Tensor'>
-            #     """
-            #
-            #     # step1.6 清零梯度
-            #     optimizer.zero_grad()
-            #
-            #     # step1.7 前向传播
-            #     outputs = yolov3_net(images)
-            #
-            #     """
-            #     print(type(outputs))  # <class 'tuple'>, (out0, out1, out2)  # 大，中，小
-            #     print(type(outputs[0]))  # <class 'torch.Tensor'>
-            #     print(outputs[0].shape)  # torch.Size([16, 255, 13, 13])
-            #     print(outputs[1].shape)  # torch.Size([16, 255, 26, 26])
-            #     print(outputs[2].shape)  # torch.Size([16, 255, 52, 52])
-            #     """
-            #
-            #     # step1.8 计算损失
-            #     losses = []
-            #     num_pos_all = 0
-            #
-            #     for i in range(3):
-            #         loss_item, num_pos = yolo_losses[i](outputs[i], targets)
-            #         losses.append(loss_item)
-            #         num_pos_all += num_pos
-            #
-            #     loss = sum(losses) / num_pos
-            #
-            #     # step1.9 反向传播
-            #     loss.backward()  # 反向传播误差
-            #     optimizer.step()  # 优化器进行优化
-            #
-            #     # TODO Note
-            #     # optimizer.step()
-            #     # 通常用在每个 mini-batch之中，而 scheduler.step() 通常用在 epoch 里面
-            #     # 只有用了 optimizer.step()，模型才会更新，而 scheduler.step() 是对 lr 进行调整。
-            #
-            #     # step1.10 进度条更新
-            #     train_loss += loss.item()  # 当前 epoch 的总损失
+    # 2. 加载 tadm 进度条，
+    with tqdm.tqdm(total=train_batch_num, desc=f'Epoch {epoch + 1}/{total_epoch}', postfix=dict) as pbar:
+        # 3. 批次遍历数据集
+        for iteration, (tensord_images, tensord_target_list) in enumerate(train_data_loader):
+            # 4. 清零梯度
+            optimizer.zero_grad()
+
+            # 5. 前向传播
+            predict_feature_list = yolov3_net(tensord_images)
+
+            # 6. 计算损失
+            loss = yolov3_losses(predict_feature_list, tensord_target_list)
+
+            # 7. 反向传播
+            loss.backward()
+
+            # 8. 优化器优化参数
+            optimizer.step()
+
+            # 9. 进度条更新
+            total_train_loss += loss.item()
             pbar.set_postfix(
                 **{
                     'lr': optimizer.param_groups[0]["lr"],  # 优化器的当前学习率
@@ -125,53 +67,44 @@ def train_one_epoch(
     # -----------------------------------------------------------------------------------------------------------#
     total_validate_loss = 0  # 当前 epoch 的验证总损失
 
-    '''
-    # step2, 验证 #######################################################################################################
-    
-    yolov3_net.eval()
-    with tqdm(total=batch_num_val, desc=f'Epoch(Validation) {epoch + 1}/{Epoch}', postfix=dict,
-              mininterval=0.3) as pbar:
-        for iteration, batch in enumerate(validate_data_loader):
-            if iteration >= batch_num_val:
-                break
-            images_val, targets_val = batch[0], batch[1]
+    # 1. 打开网络验证模式
+    yolov3_net = yolov3_net.eval()
 
-            with torch.no_grad():
-                if cuda and torch.cuda.is_available():
-                    images_val = Variable(torch.as_tensor(images_val).type(torch.FloatTensor)).cuda()
-                    targets_val = [Variable(torch.as_tensor(ann).type(torch.FloatTensor)).cuda() for ann in targets_val]
-                else:
-                    images_val = Variable(torch.as_tensor(images_val).type(torch.FloatTensor))
-                    targets_val = [Variable(torch.as_tensor(ann).type(torch.FloatTensor)) for ann in targets_val]
+    # 2. 加载 tadm 进度条，
+    with tqdm.tqdm(total=validate_batch_num, desc=f'Epoch {epoch + 1}/{total_epoch}', postfix=dict) as pbar:
+        # 3. 批次遍历数据集
+        for iteration, (tensord_images, tensord_target_list) in enumerate(validate_data_loader):
+            # 4. 清零梯度
+            optimizer.zero_grad()
 
-                optimizer.zero_grad()
-                outputs = yolov3_net(images_val)
+            # 5. 前向传播
+            predict_feature_list = yolov3_net(tensord_images)
 
-                losses = []
-                num_pos_all = 0
-                for i in range(3):
-                    loss_item, num_pos = yolo_losses[i](outputs[i], targets_val)
-                    losses.append(loss_item)
-                    num_pos_all += num_pos
+            # 6. 计算损失
+            loss = yolov3_losses(predict_feature_list, tensord_target_list)
 
-                loss = sum(losses) / num_pos
-                validate_loss += loss.item()
+            # 7. 进度条更新
+            total_validate_loss += loss.item()
+            pbar.set_postfix(
+                **{
+                    'validate_loss': total_validate_loss / (iteration + 1),  # 当前 epoch 的验证总损失 / 迭代次数
+                }
+            )
+            pbar.update(1)  # 进度条更新
 
-            pbar.set_postfix(**{'train_loss': validate_loss / (iteration + 1)})
-            pbar.update(1)
-    '''
     # -----------------------------------------------------------------------------------------------------------#
     # step3. 结果
     # -----------------------------------------------------------------------------------------------------------#
+    # 1. 计算平均损失
+    train_loss = total_train_loss / train_batch_num
+    validate_loss = total_validate_loss / validate_batch_num
 
-    # print('Finish Validation')
-    # print('Epoch:' + str(epoch + 1) + '/' + str(Epoch))
-    # print('Total Loss: %.4f || Val Loss: %.4f ' % (train_loss / (batch_num + 1), validate_loss / (batch_num_val + 1)))
-    # 
-    # print('Saving state, iter:', str(epoch + 1))
-    # 
-    # torch.save(yolov3_net.state_dict(), 'logs/Epoch%d-Total_Loss%.4f-Val_Loss%.4f.pth' % (
-    #     (epoch + 1), train_loss / (batch_num + 1), validate_loss / (batch_num_val + 1)))
+    # 2. 显示结果
+    ret = "Epoch%d-Train_Loss%.4f-Val_Loss%.4f" % (epoch + 1, train_loss, validate_loss)
+    print(ret)
+
+    # 3. 保存权重
+    torch.save(yolov3_net.state_dict(), "logs/" + ret + ".pth")
 
 
 def load_pretrained_weights(net: torch.nn.Module, weights_path: str, cuda: bool):
@@ -231,7 +164,7 @@ if __name__ == "__main__":
     yolov3_net = yolov3_net.train()
 
     # 5. 建立 loss 函数
-    yolov3_loss = model.yolov3loss.YoloLoss(Config)
+    yolov3_loss = model.yolov3loss.YoloV3Loss(Config)
 
     # 6. 加载训练数据集和测试数据集
     train_data_loader = dataset.pennfudan_dataset.get_pennfudan_dataloader(

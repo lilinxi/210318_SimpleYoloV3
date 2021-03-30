@@ -1,7 +1,7 @@
 from typing import List
 import math
 
-import numpy as np
+import numpy
 
 import torch
 
@@ -131,34 +131,257 @@ def BCELoss(pred, target):
     return output
 
 
-class YoloLoss(torch.nn.Module):
+class YoloV3Loss(torch.nn.Module):
     """
-    Yolo 损失函数
+    YoloV3 损失函数
     """
 
     def __init__(self, config: dict) -> None:
         super().__init__()
-        pass
 
-    #     self.anchors = anchors
-    #     self.num_anchors = len(anchors)
-    #     self.num_classes = num_classes
-    #     self.bbox_attrs = 4 + 1 + num_classes  # 每个预测框有 4+1+classes 个属性
+        self.lambda_xy = 1.0  # 预测框中心误差权重
+        self.lambda_wh = 1.0  # 预测框大小误差权重
+        self.lambda_noobj = 1.0  # 预测框置信度误差权重
+        self.lambda_obj = 1.0  # 预测框置信度误差权重
+        self.lambda_class = 1.0  # 预测框类别误差权重
+
+        self.normd_anchors = numpy.asarray(config["anchors"]).astype(numpy.float)
+        self.normd_anchors[:, :, 0] /= config["image_width"]
+        self.normd_anchors[:, :, 1] /= config["image_height"]
+
+        #     self.num_anchors = len(anchors)
+        #     self.num_classes = num_classes
+        #     self.bbox_attrs = 4 + 1 + num_classes  # 每个预测框有 4+1+classes 个属性
+        #
+        #     # 计算特征层的宽高：416/13=32，416/26=16，416/52=8
+        #     self.feature_length = [image_size[0] // 32, image_size[0] // 16, image_size[0] // 8]  # [13, 26, 52]
+        #     self.image_width = image_size[0]  # 416 * 416
+        #     self.image_height = image_size[1]  # 416 * 416
+        #
+        self.ignore_threshold = 0.5  # iou 忽略的阈值
+
     #
-    #     # 计算特征层的宽高：416/13=32，416/26=16，416/52=8
-    #     self.feature_length = [image_size[0] // 32, image_size[0] // 16, image_size[0] // 8]  # [13, 26, 52]
-    #     self.image_width = image_size[0]  # 416 * 416
-    #     self.image_height = image_size[1]  # 416 * 416
+
     #
-    #     self.ignore_threshold = 0.5  # iou 忽略的阈值
-    #
-    #     self.lambda_xy = 1.0  # 预测框中心误差权重
-    #     self.lambda_wh = 1.0  # 预测框大小误差权重
-    #     self.lambda_noobj = 1.0  # 预测框置信度误差权重
-    #     self.lambda_obj = 1.0  # 预测框置信度误差权重
-    #     self.lambda_class = 1.0  # 预测框类别误差权重
-    #
-    # def forward(self, output: torch.Tensor, targets: List[torch.Tensor]) -> (torch.Tensor, torch.Tensor):
+
+    def decode_target(self,
+                      target: List[torch.Tensor],
+                      norm_anchors: list,
+                      output_feature_height: int,
+                      output_feature_width: int
+                      ) -> (
+            torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,
+            torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,
+            torch.Tensor, torch.Tensor
+    ):
+        """
+        解析某一特征层的真值框为 tensor
+
+        :param target: 目标标注，为标注框的数组集合，batch_size * len(box) * 5（中心点 + 宽高 + 类别），中心点和宽高都是 0~1 的
+        :param scaled_anchors: scaled_anchors 大小是相对于特征层的
+        :param output_feature_width: 特征层宽
+        :param output_feature_height: 特征层高
+        :param ignore_threshold: iou 忽略的阈值
+        :return:
+        """
+
+        # 计算一共有多少张图片
+        batch_size = len(target)
+
+        # [13, 26, 52] 中根据特征层宽获取特征层的编号，获得当前特征层先验框所属的编号，方便后面对先验框筛选
+        anchor_index = [
+            [0, 1, 2],  # 大特征层前三个
+            [3, 4, 5],  # 中特征层
+            [6, 7, 8]  # 小特征层
+        ][self.feature_length.index(output_feature_width)]  # feature_length: [13, 26, 52]
+        # 先验框开始的坐标
+        subtract_index = [0, 3, 6][self.feature_length.index(output_feature_width)]
+
+        # output1：有物体掩码，默认为 0，表示无物体
+        mask = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                           requires_grad=False)
+        # output2：无物体掩码，默认为 1，表示无物体
+        noobj_mask = torch.ones(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                                requires_grad=False)
+
+        # output3，4，5，6：x,y,w,h Tensor，默认为 0
+        tx = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                         requires_grad=False)
+        ty = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                         requires_grad=False)
+        tw = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                         requires_grad=False)
+        th = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                         requires_grad=False)
+
+        # output7，8：置信度,类别 Tensor，默认为 0
+        tconf = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                            requires_grad=False)
+        tcls = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
+                           self.num_classes,
+                           requires_grad=False)
+
+        # output9，10：预测框损失 x，y
+        box_loss_scale_x = torch.zeros(batch_size, int(self.num_anchors / 3),
+                                       output_feature_width, output_feature_height,
+                                       requires_grad=False)
+        box_loss_scale_y = torch.zeros(batch_size, int(self.num_anchors / 3),
+                                       output_feature_width, output_feature_height,
+                                       requires_grad=False)
+
+        # 遍历这一个批次所有的图片
+        for i in range(batch_size):
+            if len(target[i]) == 0:  # 真值中没有预测框则跳过
+                continue
+
+            """
+            print(target[i].shape) # torch.Size([2, 5])
+            print(target[i])
+            tensor([[71.0000, 124.5000, 142.0000, 249.0000, 1.0000],
+                    [57.5000, 157.5000, 115.0000, 315.0000, 1.0000]])
+            """
+
+            # 计算出正样本在特征层上的中心点
+            gxs = target[i][:, 0:1] / stride_width
+            gys = target[i][:, 1:2] / stride_height
+
+            """
+            print(gxs.shape) # torch.Size([2, 1])
+            print(gxs)
+            print(gys)
+            tensor([[2.2188],
+                   [1.7969]])
+            tensor([[3.8906],
+                    [4.9219]])
+            """
+
+            # 计算出正样本相对于特征层的宽高
+            gws = target[i][:, 2:3] / stride_width
+            ghs = target[i][:, 3:4] / stride_height
+
+            """
+            print(gws)
+            print(ghs)
+            tensor([[4.4375],
+                    [3.5938]])
+            tensor([[7.7812],
+                    [9.8438]])
+            """
+
+            # 计算出正样本属于特征层的哪个特征点（由左下角的特征点预测）TODO: 这不是左上角吗
+            gis = torch.floor(gxs)
+            gjs = torch.floor(gys)
+
+            # 将真实框转换一个形式：num_true_box, 4
+            gt_box = torch.FloatTensor(
+                torch.cat(
+                    [torch.zeros_like(gws), torch.zeros_like(ghs), gws, ghs]  # 前两个维度都为0，表示 iou 计算时，框的位置都在中心点
+                    , 1)
+            )
+
+            """
+            print(gt_box.shape) # torch.Size([2, 4])
+            print(gt_box)
+            tensor([[0.0000, 0.0000, 4.4375, 7.7812],
+                   [0.0000, 0.0000, 3.5938, 9.8438]])
+            """
+
+            # 将先验框转换一个形式，9, 4
+            anchor_shapes = torch.FloatTensor(
+                torch.cat(
+                    # 前两个维度都为0，表示 iou 计算时，框的位置都在中心点
+                    (torch.zeros((self.num_anchors, 2)), torch.FloatTensor(scaled_anchors))
+                    , 1)
+            )
+
+            """
+            print(anchor_shapes.shape) # torch.Size([9, 4])
+            print(anchor_shapes)
+            tensor([[0.0000, 0.0000, 3.6250, 2.8125],
+                    [0.0000, 0.0000, 4.8750, 6.1875],
+                    [0.0000, 0.0000, 11.6562, 10.1875],
+                    [0.0000, 0.0000, 0.9375, 1.9062],
+                    [0.0000, 0.0000, 1.9375, 1.4062],
+                    [0.0000, 0.0000, 1.8438, 3.7188],
+                    [0.0000, 0.0000, 0.3125, 0.4062],
+                    [0.0000, 0.0000, 0.5000, 0.9375],
+                    [0.0000, 0.0000, 1.0312, 0.7188]])
+            """
+
+            #  计算交并比，num_true_box, 9，即真值框和每一个 anchor 框的 iou
+            # （num_true_box, 4）*（9，4）->（num_true_box，9）
+            anch_ious = jaccard(gt_box, anchor_shapes)
+
+            """
+            print(anch_ious.shape) # torch.Size([2, 9])
+            print(anch_ious)
+            tensor([[0.2953, 0.7374, 0.2908, 0.0518, 0.0789, 0.1986, 0.0037, 0.0136, 0.0215],
+                    [0.2850, 0.5135, 0.2979, 0.0505, 0.0770, 0.1938, 0.0036, 0.0133, 0.0210]])
+            """
+
+            # 计算重合度最大的先验框是哪个，num_true_box, 1
+            best_ns = torch.argmax(anch_ious, dim=-1)
+
+            """
+            print(best_ns.shape) # torch.Size([2])
+            print(best_ns) # tensor([1, 1])
+            """
+
+            # 遍历所有物体，每个物体有一个最匹配的 anchor 框
+            for j, best_n in enumerate(best_ns):  # i 遍历的是所有的图片，j 遍历的是一张图片的所有检测框
+                if best_n not in anchor_index:  # 重合度最大的先验框不在当前特征层
+                    continue
+
+                # -------------------------------------------------------------#
+                #   取出真实框各类坐标：
+                #   gi和gj代表的是真实框对应的特征点的x轴y轴坐标
+                #   gx和gy代表真实框的x轴和y轴坐标
+                #   gw和gh代表真实框的宽和高
+                # -------------------------------------------------------------#
+                gi = gis[j].long()
+                gj = gjs[j].long()
+                gx = gxs[j]
+                gy = gys[j]
+                gw = gws[j]
+                gh = ghs[j]
+
+                # 真实框中点在特征层内
+                if (gj < output_feature_height) and (gi < output_feature_width):  # 因为是左上角预测的
+                    best_n = best_n - subtract_index  # 重合度最大的先验框的索引
+
+                    # noobj_mask 代表无目标的特征点，置 0 表示有物体
+                    noobj_mask[i, best_n, gj, gi] = 0
+                    # mask 代表有目标的特征点，置 1 表示有物体
+                    mask[i, best_n, gj, gi] = 1
+                    # tx、ty 代表中心调整参数的真实值
+                    tx[i, best_n, gj, gi] = gx - gi.float()  # 0~1
+                    ty[i, best_n, gj, gi] = gy - gj.float()  # 0~1
+                    # tw、th 代表宽高调整参数的真实值（TODO：这里进行了一些数学变换）
+                    tw[i, best_n, gj, gi] = math.log(gw / scaled_anchors[best_n + subtract_index][0])
+                    th[i, best_n, gj, gi] = math.log(gh / scaled_anchors[best_n + subtract_index][1])
+
+                    # 用于获得 xywh 的比例，大目标loss权重小，小目标loss权重大
+                    box_loss_scale_x[i, best_n, gj, gi] = target[i][j, 2]
+                    box_loss_scale_y[i, best_n, gj, gi] = target[i][j, 3]
+
+                    # tconf 代表物体置信度
+                    tconf[i, best_n, gj, gi] = 1
+                    # tcls 代表种类置信度
+                    tcls[i, best_n, gj, gi, int(target[i][j, 4])] = 1
+                else:
+                    print('Step {0} out of bound'.format(i))
+                    print('gj: {0}, height: {1} | gi: {2}, width: {3}'.format(
+                        gj, output_feature_height, gi, output_feature_width))
+                    continue
+
+        return \
+            mask, noobj_mask, \
+            tx, ty, tw, th, \
+            tconf, tcls, \
+            box_loss_scale_x, box_loss_scale_y
+
+    def forward(self, predict_feature_list: torch.Tensor, tensord_target_list: List[torch.Tensor]) -> torch.Tensor:
+        pass
     #     """
     #     计算损失
     #     :param output: YoloNet 的输出结果
@@ -342,221 +565,7 @@ class YoloLoss(torch.nn.Module):
     #
     #     return loss, num_pos
     #
-    # def decode_target(self,
-    #                   target: List[torch.Tensor],
-    #                   norm_anchors: list,
-    #                   output_feature_height: int,
-    #                   output_feature_width: int
-    #                   ) -> (
-    #         torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,
-    #         torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,
-    #         torch.Tensor, torch.Tensor
-    # ):
-    #     """
-    #     解析某一特征层的真值框为 tensor
-    #
-    #     :param target: 目标标注，为标注框的数组集合，batch_size * len(box) * 5（中心点 + 宽高 + 类别），中心点和宽高都是 0~1 的
-    #     :param scaled_anchors: scaled_anchors 大小是相对于特征层的
-    #     :param output_feature_width: 特征层宽
-    #     :param output_feature_height: 特征层高
-    #     :param ignore_threshold: iou 忽略的阈值
-    #     :return:
-    #     """
-    #
-    #     # 计算一共有多少张图片
-    #     batch_size = len(target)
-    #
-    #     # [13, 26, 52] 中根据特征层宽获取特征层的编号，获得当前特征层先验框所属的编号，方便后面对先验框筛选
-    #     anchor_index = [
-    #         [0, 1, 2],  # 大特征层前三个
-    #         [3, 4, 5],  # 中特征层
-    #         [6, 7, 8]  # 小特征层
-    #     ][self.feature_length.index(output_feature_width)]  # feature_length: [13, 26, 52]
-    #     # 先验框开始的坐标
-    #     subtract_index = [0, 3, 6][self.feature_length.index(output_feature_width)]
-    #
-    #     # output1：有物体掩码，默认为 0，表示无物体
-    #     mask = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                        requires_grad=False)
-    #     # output2：无物体掩码，默认为 1，表示无物体
-    #     noobj_mask = torch.ones(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                             requires_grad=False)
-    #
-    #     # output3，4，5，6：x,y,w,h Tensor，默认为 0
-    #     tx = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                      requires_grad=False)
-    #     ty = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                      requires_grad=False)
-    #     tw = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                      requires_grad=False)
-    #     th = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                      requires_grad=False)
-    #
-    #     # output7，8：置信度,类别 Tensor，默认为 0
-    #     tconf = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                         requires_grad=False)
-    #     tcls = torch.zeros(batch_size, int(self.num_anchors / 3), output_feature_width, output_feature_height,
-    #                        self.num_classes,
-    #                        requires_grad=False)
-    #
-    #     # output9，10：预测框损失 x，y
-    #     box_loss_scale_x = torch.zeros(batch_size, int(self.num_anchors / 3),
-    #                                    output_feature_width, output_feature_height,
-    #                                    requires_grad=False)
-    #     box_loss_scale_y = torch.zeros(batch_size, int(self.num_anchors / 3),
-    #                                    output_feature_width, output_feature_height,
-    #                                    requires_grad=False)
-    #
-    #     # 遍历这一个批次所有的图片
-    #     for i in range(batch_size):
-    #         if len(target[i]) == 0:  # 真值中没有预测框则跳过
-    #             continue
-    #
-    #         """
-    #         print(target[i].shape) # torch.Size([2, 5])
-    #         print(target[i])
-    #         tensor([[71.0000, 124.5000, 142.0000, 249.0000, 1.0000],
-    #                 [57.5000, 157.5000, 115.0000, 315.0000, 1.0000]])
-    #         """
-    #
-    #         # 计算出正样本在特征层上的中心点
-    #         gxs = target[i][:, 0:1] / stride_width
-    #         gys = target[i][:, 1:2] / stride_height
-    #
-    #         """
-    #         print(gxs.shape) # torch.Size([2, 1])
-    #         print(gxs)
-    #         print(gys)
-    #         tensor([[2.2188],
-    #                [1.7969]])
-    #         tensor([[3.8906],
-    #                 [4.9219]])
-    #         """
-    #
-    #         # 计算出正样本相对于特征层的宽高
-    #         gws = target[i][:, 2:3] / stride_width
-    #         ghs = target[i][:, 3:4] / stride_height
-    #
-    #         """
-    #         print(gws)
-    #         print(ghs)
-    #         tensor([[4.4375],
-    #                 [3.5938]])
-    #         tensor([[7.7812],
-    #                 [9.8438]])
-    #         """
-    #
-    #         # 计算出正样本属于特征层的哪个特征点（由左下角的特征点预测）TODO: 这不是左上角吗
-    #         gis = torch.floor(gxs)
-    #         gjs = torch.floor(gys)
-    #
-    #         # 将真实框转换一个形式：num_true_box, 4
-    #         gt_box = torch.FloatTensor(
-    #             torch.cat(
-    #                 [torch.zeros_like(gws), torch.zeros_like(ghs), gws, ghs]  # 前两个维度都为0，表示 iou 计算时，框的位置都在中心点
-    #                 , 1)
-    #         )
-    #
-    #         """
-    #         print(gt_box.shape) # torch.Size([2, 4])
-    #         print(gt_box)
-    #         tensor([[0.0000, 0.0000, 4.4375, 7.7812],
-    #                [0.0000, 0.0000, 3.5938, 9.8438]])
-    #         """
-    #
-    #         # 将先验框转换一个形式，9, 4
-    #         anchor_shapes = torch.FloatTensor(
-    #             torch.cat(
-    #                 # 前两个维度都为0，表示 iou 计算时，框的位置都在中心点
-    #                 (torch.zeros((self.num_anchors, 2)), torch.FloatTensor(scaled_anchors))
-    #                 , 1)
-    #         )
-    #
-    #         """
-    #         print(anchor_shapes.shape) # torch.Size([9, 4])
-    #         print(anchor_shapes)
-    #         tensor([[0.0000, 0.0000, 3.6250, 2.8125],
-    #                 [0.0000, 0.0000, 4.8750, 6.1875],
-    #                 [0.0000, 0.0000, 11.6562, 10.1875],
-    #                 [0.0000, 0.0000, 0.9375, 1.9062],
-    #                 [0.0000, 0.0000, 1.9375, 1.4062],
-    #                 [0.0000, 0.0000, 1.8438, 3.7188],
-    #                 [0.0000, 0.0000, 0.3125, 0.4062],
-    #                 [0.0000, 0.0000, 0.5000, 0.9375],
-    #                 [0.0000, 0.0000, 1.0312, 0.7188]])
-    #         """
-    #
-    #         #  计算交并比，num_true_box, 9，即真值框和每一个 anchor 框的 iou
-    #         # （num_true_box, 4）*（9，4）->（num_true_box，9）
-    #         anch_ious = jaccard(gt_box, anchor_shapes)
-    #
-    #         """
-    #         print(anch_ious.shape) # torch.Size([2, 9])
-    #         print(anch_ious)
-    #         tensor([[0.2953, 0.7374, 0.2908, 0.0518, 0.0789, 0.1986, 0.0037, 0.0136, 0.0215],
-    #                 [0.2850, 0.5135, 0.2979, 0.0505, 0.0770, 0.1938, 0.0036, 0.0133, 0.0210]])
-    #         """
-    #
-    #         # 计算重合度最大的先验框是哪个，num_true_box, 1
-    #         best_ns = torch.argmax(anch_ious, dim=-1)
-    #
-    #         """
-    #         print(best_ns.shape) # torch.Size([2])
-    #         print(best_ns) # tensor([1, 1])
-    #         """
-    #
-    #         # 遍历所有物体，每个物体有一个最匹配的 anchor 框
-    #         for j, best_n in enumerate(best_ns):  # i 遍历的是所有的图片，j 遍历的是一张图片的所有检测框
-    #             if best_n not in anchor_index:  # 重合度最大的先验框不在当前特征层
-    #                 continue
-    #
-    #             # -------------------------------------------------------------#
-    #             #   取出真实框各类坐标：
-    #             #   gi和gj代表的是真实框对应的特征点的x轴y轴坐标
-    #             #   gx和gy代表真实框的x轴和y轴坐标
-    #             #   gw和gh代表真实框的宽和高
-    #             # -------------------------------------------------------------#
-    #             gi = gis[j].long()
-    #             gj = gjs[j].long()
-    #             gx = gxs[j]
-    #             gy = gys[j]
-    #             gw = gws[j]
-    #             gh = ghs[j]
-    #
-    #             # 真实框中点在特征层内
-    #             if (gj < output_feature_height) and (gi < output_feature_width):  # 因为是左上角预测的
-    #                 best_n = best_n - subtract_index  # 重合度最大的先验框的索引
-    #
-    #                 # noobj_mask 代表无目标的特征点，置 0 表示有物体
-    #                 noobj_mask[i, best_n, gj, gi] = 0
-    #                 # mask 代表有目标的特征点，置 1 表示有物体
-    #                 mask[i, best_n, gj, gi] = 1
-    #                 # tx、ty 代表中心调整参数的真实值
-    #                 tx[i, best_n, gj, gi] = gx - gi.float()  # 0~1
-    #                 ty[i, best_n, gj, gi] = gy - gj.float()  # 0~1
-    #                 # tw、th 代表宽高调整参数的真实值（TODO：这里进行了一些数学变换）
-    #                 tw[i, best_n, gj, gi] = math.log(gw / scaled_anchors[best_n + subtract_index][0])
-    #                 th[i, best_n, gj, gi] = math.log(gh / scaled_anchors[best_n + subtract_index][1])
-    #
-    #                 # 用于获得 xywh 的比例，大目标loss权重小，小目标loss权重大
-    #                 box_loss_scale_x[i, best_n, gj, gi] = target[i][j, 2]
-    #                 box_loss_scale_y[i, best_n, gj, gi] = target[i][j, 3]
-    #
-    #                 # tconf 代表物体置信度
-    #                 tconf[i, best_n, gj, gi] = 1
-    #                 # tcls 代表种类置信度
-    #                 tcls[i, best_n, gj, gi, int(target[i][j, 4])] = 1
-    #             else:
-    #                 print('Step {0} out of bound'.format(i))
-    #                 print('gj: {0}, height: {1} | gi: {2}, width: {3}'.format(
-    #                     gj, output_feature_height, gi, output_feature_width))
-    #                 continue
-    #
-    #     return \
-    #         mask, noobj_mask, \
-    #         tx, ty, tw, th, \
-    #         tconf, tcls, \
-    #         box_loss_scale_x, box_loss_scale_y
+
     #
     # def get_ignore(self, prediction: torch.Tensor, target: torch.Tensor,
     #                scaled_anchors: List[tuple], output_feature_height: int, output_feature_width: int,
