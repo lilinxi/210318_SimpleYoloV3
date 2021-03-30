@@ -108,8 +108,8 @@ class YoloV3Decode(torch.nn.Module):
 
         # 7. 解析 wh
         # 7.1 构造 anchor tensor
-        anchor_width = torch.unsqueeze(torch.Tensor(cur_anchors)[:, 0], dim=1)
-        anchor_height = torch.unsqueeze(torch.Tensor(cur_anchors)[:, 1], dim=1)
+        anchor_width = torch.Tensor(cur_anchors)[:, 0].unsqueeze(dim=1)
+        anchor_height = torch.Tensor(cur_anchors)[:, 1].unsqueeze(dim=1)
         grid_anchor_width = anchor_width.repeat(batch_size, 1). \
             repeat(1, 1, predict_feature_height * predict_feature_width). \
             view(predict_w.shape)
