@@ -11,7 +11,7 @@ if __name__ == "__main__":
     BATCH_SIZE = 1
 
     pennfudan_dataloader = dataset.pennfudan_dataset.get_pennfudan_dataloader(
-        config=conf.config.PennFudanConfig,
+        config=conf.config.DefaultConfig,
         root='/Users/limengfan/Dataset/PennFudanPed',
         batch_size=BATCH_SIZE
     )

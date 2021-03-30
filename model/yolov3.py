@@ -10,6 +10,8 @@ import torch.nn as nn
 from model import yolov3net
 from util import yolo_utils
 
+import model.yolov3decode
+
 import dataset.dataset_utils
 
 
@@ -60,6 +62,8 @@ class YoloV3(object):
                     self.cuda
                 )
             )
+
+        self.yolov3_decode = model.yolov3decode.YoloV3Decode(config=self.config)
         print("YoloV3 generate Success")
 
     def predict(self, tensord_image: torch.Tensor, tensord_target: torch.Tensor) -> Image.Image:
@@ -75,7 +79,8 @@ class YoloV3(object):
             output_list = []
             # 对三种大小的预测框进行解析
             for index in range(3):  # 顺序：大，中，小
-                output_list.append(self.yolov3_decodes[index](outputs[index]))
+                # output_list.append(self.yolov3_decodes[index](outputs[index]))
+                output_list.append(self.yolov3_decode(outputs[index]))
 
             """
             for i, o in enumerate(output_list): print("output_list", i, ":", o.shape)
@@ -130,7 +135,7 @@ class YoloV3(object):
             draw = ImageDraw.Draw(image)
             draw.rectangle([xmin, ymin, xmax, ymax], outline="#00FF00")
             # 绘制标签
-            font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
+            font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/assets/simhei.ttf', 32)
             draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#00FF00")
             del draw
 
@@ -145,7 +150,7 @@ class YoloV3(object):
             draw = ImageDraw.Draw(image)
             draw.rectangle([xmin, ymin, xmax, ymax], outline="#FF0000")
             # 绘制标签
-            font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/model/simhei.ttf', 32)
+            font = ImageFont.truetype('/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/assets/simhei.ttf', 32)
             draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
             del draw
         # for index, label in enumerate(top_label):
