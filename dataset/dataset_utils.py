@@ -123,24 +123,3 @@ def collate_fn(batch: List[tuple]) -> (torch.Tensor, torch.Tensor):
 
     return tensord_images, tensord_target_list
 
-
-def decode_tensord_target(config: dict, tensord_target: torch.Tensor) -> numpy.ndarray:
-    """
-
-    :param config:
-    :param tensord_target:
-    :return: box_num * (xmin, ymin, xmax, ymax, label)
-    """
-    raw_target = tensord_target.numpy()
-    raw_target[:, 0] *= config["image_width"]
-    raw_target[:, 1] *= config["image_height"]
-    raw_target[:, 2] *= config["image_width"]
-    raw_target[:, 3] *= config["image_height"]
-
-    raw_boxes = raw_target.copy()
-    raw_boxes[:, 0] = numpy.around(raw_target[:, 0] - raw_target[:, 2] / 2)
-    raw_boxes[:, 1] = numpy.around(raw_target[:, 1] - raw_target[:, 3] / 2)
-    raw_boxes[:, 2] = numpy.around(raw_target[:, 0] + raw_target[:, 2] / 2)
-    raw_boxes[:, 3] = numpy.around(raw_target[:, 1] + raw_target[:, 3] / 2)
-
-    return raw_boxes.astype(numpy.int)
