@@ -1,32 +1,26 @@
-from __future__ import division
-
 import torch
-import torch.nn as nn
 import torchvision.ops
 
 from typing import List
 
 
 # -----------------------------------------------------------------------------------------------------------#
-# class DecodeBox(nn.Module) # 将预测结果解析为预测框
-#
-# def letterbox_image(image: Image.Image, scale_width: int, scale_height: int) -> Image.Image:
-#    检测图像增加灰条，实现不失真的图像等比例放缩
+# class YoloV3Decode(torch.nn.Module): # 将预测结果解析为预测框
 #
 # def non_max_suppression(
-#         prediction: torch.Tensor, classes: int,
-#         conf_threshold: float = 0.5, nms_iou_threshold: float = 0.4) -> List[torch.Tensor]:
-#     进行非极大值抑制，并将预测结果的格式转换成左上角右下角的格式。
+#         predict_bbox_attrs: torch.Tensor,
+#         conf_threshold: float,
+#         nms_iou_threshold: float
+# ) -> List[torch.Tensor]:
+#     """
+#     进行非极大值抑制
 #
-# def yolo_correct_boxes(
-#         xmin, ymin, xmax, ymax,
-#         image_input_width, image_input_height,
-#         image_raw_width, image_raw_height):
-#     从灰条检测图像中恢复原始的检测框
+#     置信度筛选
+#     nms 筛选
 # -----------------------------------------------------------------------------------------------------------#
 
 
-class YoloV3Decode(nn.Module):
+class YoloV3Decode(torch.nn.Module):
     """
     将预测结果解析为预测框
     """
@@ -144,15 +138,23 @@ class YoloV3Decode(nn.Module):
         # 9.2 预测种类得分的最大值作为置信度, 预测种类得分的最大值的索引作为预测标签
         norm_predict_class_conf, predict_class_label = torch.max(viewd_predict_class_conf_list, 2, keepdim=True)
 
-        # 10. 拼接解析结果，拼接最后一个维度
+        # 10. 组合解析结果
+        predict_xmin = viewd_predict_x - half_viewd_anchord_predict_width
+        predict_ymin = viewd_predict_y - half_viewd_anchord_predict_height
+        predict_xmax = viewd_predict_x + half_viewd_anchord_predict_width
+        predict_ymax = viewd_predict_y + half_viewd_anchord_predict_height
+        predict_conf = viewd_predict_obj_conf * norm_predict_class_conf
+        predict_label = predict_class_label
+
+        # 11. 拼接解析结果，拼接最后一个维度
         predict_bbox_attrs = torch.cat(
             (
-                viewd_predict_x - half_viewd_anchord_predict_width,
-                viewd_predict_y - half_viewd_anchord_predict_height,
-                viewd_predict_x + half_viewd_anchord_predict_width,
-                viewd_predict_y + half_viewd_anchord_predict_height,
-                viewd_predict_obj_conf * norm_predict_class_conf,
-                predict_class_label,
+                predict_xmin,
+                predict_ymin,
+                predict_xmax,
+                predict_ymax,
+                predict_conf,
+                predict_label,
             ), -1)
 
         return predict_bbox_attrs
@@ -169,12 +171,10 @@ def non_max_suppression(
     置信度筛选
     nms 筛选
 
-    :param prediction: 预测框列表，torch.Size([1, 10647, 85]) = (batch_size, 13*13*3 + 26*26*3 + 52*52*3 = 10647, (x+y+w+h+conf+classes))
-    :param classes: 类别数目
+    :param predict_bbox_attrs: 预测框列表
     :param conf_threshold: 置信度阈值
     :param nms_iou_threshold: iou 阈值
     :return:
-        prediction_after_nms: batch_size * (box_num, xmin + ymin + xmax + ymax + obj_conf + class_conf + class_label = 7)
     """
 
     # 1. 返回值为长度为 batch_size 的列表，每张图片做单独的过滤处理
@@ -199,21 +199,24 @@ def non_max_suppression(
                 image_predict_after_conf_threshold[:, 5] == label
                 ]
 
-            #  使用官方自带的非极大抑制会速度更快一些！
-            keep = torchvision.ops.nms(
+            # 7. 使用官方自带的非极大抑制会速度更快一些
+            nms_mask = torchvision.ops.nms(
                 image_predict_in_label[:, :4],  # 预测框
-                image_predict_in_label[:, 4] ,#* image_predict_in_label[:, 5],  # 置信度：obj_conf * classes_conf
+                image_predict_in_label[:, 4],  # 置信度
                 nms_iou_threshold  # iou 阈值
             )
 
-            # 筛选之后的预测结果
-            max_detections_in_label = image_predict_in_label[keep]
+            # 8. iou 筛选之后的预测结果
+            image_predict_in_label_after_nms_iou_threshold = image_predict_in_label[nms_mask]
 
-            # 添加筛选之后的预测结果，直接添加或者拼接在后面
+            # 9. 添加筛选之后的预测结果，直接添加或者拼接在后面
             if predict_bbox_attrs_after_nms[image_index] is None:
-                predict_bbox_attrs_after_nms[image_index] = max_detections_in_label
+                predict_bbox_attrs_after_nms[image_index] = image_predict_in_label_after_nms_iou_threshold
             else:
                 predict_bbox_attrs_after_nms[image_index] = torch.cat(
-                    (predict_bbox_attrs_after_nms[image_index], max_detections_in_label), 0)
+                    (
+                        predict_bbox_attrs_after_nms[image_index],
+                        image_predict_in_label_after_nms_iou_threshold
+                    ), 0)
 
     return predict_bbox_attrs_after_nms
