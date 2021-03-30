@@ -145,7 +145,7 @@ class YoloV3(object):
 
         # 对每一个类别分别绘制预测框（红）
         for box in numpy.around(numpy.asarray(batch_detections)).astype(numpy.int):
-            (xmin, ymin, xmax, ymax, _, _, label) = box
+            (xmin, ymin, xmax, ymax, _, label) = box
             draw = ImageDraw.Draw(image)
             draw.rectangle([xmin, ymin, xmax, ymax], outline="#FF0000")
             # 绘制标签

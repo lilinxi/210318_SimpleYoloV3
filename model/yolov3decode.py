@@ -134,11 +134,14 @@ class YoloV3Decode(nn.Module):
 
         # 8. 解析 obj_conf
         norm_predict_obj_conf = torch.sigmoid(predict_obj_conf)
+        # 8.1 改变维度
         viewd_predict_obj_conf = norm_predict_obj_conf.view(batch_size, -1, 1)
 
         # 9. 解析 class_conf_list
         norm_predict_class_conf_list = torch.sigmoid(predict_class_conf_list)
+        # 9.1 改变维度
         viewd_predict_class_conf_list = norm_predict_class_conf_list.view(batch_size, -1, self.classes)
+        # 9.2 预测种类得分的最大值作为置信度, 预测种类得分的最大值的索引作为预测标签
         norm_predict_class_conf, predict_class_label = torch.max(viewd_predict_class_conf_list, 2, keepdim=True)
 
         # 10. 拼接解析结果，拼接最后一个维度
@@ -148,9 +151,7 @@ class YoloV3Decode(nn.Module):
                 viewd_predict_y - half_viewd_anchord_predict_height,
                 viewd_predict_x + half_viewd_anchord_predict_width,
                 viewd_predict_y + half_viewd_anchord_predict_height,
-                viewd_predict_obj_conf,
-                # viewd_predict_class_conf_list,
-                norm_predict_class_conf,
+                viewd_predict_obj_conf * norm_predict_class_conf,
                 predict_class_label,
             ), -1)
 
@@ -159,8 +160,8 @@ class YoloV3Decode(nn.Module):
 
 def non_max_suppression(
         predict_bbox_attrs: torch.Tensor,
-        conf_threshold: float = 0.5,
-        nms_iou_threshold: float = 0.4
+        conf_threshold: float,
+        nms_iou_threshold: float
 ) -> List[torch.Tensor]:
     """
     进行非极大值抑制
@@ -181,59 +182,32 @@ def non_max_suppression(
 
     # 2. 遍历每张图片和预测数据
     for image_index, image_predict_bbox_attrs in enumerate(predict_bbox_attrs):
-        # 3. 预测种类得分的最大值作为置信度, 预测种类得分的最大值的索引作为预测标签
-        # image_predict_class_conf_list = image_predict_bbox_attrs[:, 5:]
-        # class_conf, class_label = torch.max(image_predict_class_conf_list, 1, keepdim=True)
-        class_conf, class_label = torch.unsqueeze(image_predict_bbox_attrs[:,5],1),torch.unsqueeze(image_predict_bbox_attrs[:,6],1)
+        # 3. 置信度筛选
+        conf = image_predict_bbox_attrs[:, 4]
+        conf_mask = conf >= conf_threshold
+        image_predict_after_conf_threshold = image_predict_bbox_attrs[conf_mask]
 
-
-        # 利用置信度进行第一轮筛选
-        # (10647, 1) * (10647, 1) -> (10647, 1) -> (10647)
-        # obj_conf * class_conf >= conf_threshold
-        conf_mask = (image_predict_bbox_attrs[:, 4] * class_conf[:, 0] >= conf_threshold).squeeze()
-
-        # 根据置信度进行预测结果的筛选，只保留一小部分预测框
-        image_prediction_after_conf_threshold = image_predict_bbox_attrs[
-            conf_mask]  # torch.Size([10647, 85]) -> (threshold_size, 85)
-        class_conf_after_conf_threshold = class_conf[conf_mask]  # torch.Size([10647, 1]) -> (threshold_size, 1)
-        class_label_after_conf_threshold = class_label[conf_mask]  # torch.Size([10647, 1]) -> (threshold_size, 1)
-
-        if not image_prediction_after_conf_threshold.size(0):  # 如果没有预测框了则开始下一个图片，即 threshold_size = 0
+        # 4. 如果没有预测框了则开始下一个图片，即 threshold_size = 0
+        if not image_predict_after_conf_threshold.shape[0]:
             continue
 
-        # -------------------------------------------------------------------------#
-        #   创建 detections  [threshold_size, 7]
-        #   7 的内容为：xmin + ymin + xmax + ymax + obj_conf + class_conf + class_label
-        # -------------------------------------------------------------------------#
-        detections = torch.cat(
-            (
-                image_prediction_after_conf_threshold[:, :5],
-                class_conf_after_conf_threshold.float(),
-                class_label_after_conf_threshold.float()
-            ), 1)
-
-        #  获得预测结果中包含的所有种类
-        unique_labels = detections[:, -1].unique()
-
-        # 如果使用 GPU 则转化为 GPU 存储
-        # if prediction.is_cuda:
-        #     unique_labels = unique_labels.cuda()
-        #     detections = detections.cuda()
-
-        # 遍历每一个类别
+        # 5. 获得预测结果中包含的所有种类，对每个种类进行 iou 筛选
+        unique_labels = image_predict_after_conf_threshold[:, 5].unique()
         for label in unique_labels:
-            # 获得某一类得分筛选后全部的预测结果
-            detections_in_label = detections[detections[:, -1] == label]
+            # 6. 获得某个种类的所有预测框
+            image_predict_in_label = image_predict_after_conf_threshold[
+                image_predict_after_conf_threshold[:, 5] == label
+                ]
 
             #  使用官方自带的非极大抑制会速度更快一些！
             keep = torchvision.ops.nms(
-                detections_in_label[:, :4],  # 预测框
-                detections_in_label[:, 4] * detections_in_label[:, 5],  # 置信度：obj_conf * classes_conf
+                image_predict_in_label[:, :4],  # 预测框
+                image_predict_in_label[:, 4] ,#* image_predict_in_label[:, 5],  # 置信度：obj_conf * classes_conf
                 nms_iou_threshold  # iou 阈值
             )
 
             # 筛选之后的预测结果
-            max_detections_in_label = detections_in_label[keep]
+            max_detections_in_label = image_predict_in_label[keep]
 
             # 添加筛选之后的预测结果，直接添加或者拼接在后面
             if predict_bbox_attrs_after_nms[image_index] is None:
