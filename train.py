@@ -154,6 +154,9 @@ if __name__ == "__main__":
     Freeze_Epoch_LR = 1e-3
     Unfreeze_Epoch_LR = 1e-4
 
+    Num_Workers = 10
+    Suffle = True
+
     # 2. 创建 yolo 模型，训练前一定要修改 Config 里面的 classes 参数，训练的是 YoloNet 不是 Yolo
     yolov3_net = model.yolov3net.YoloV3Net(Config)
 
@@ -172,8 +175,8 @@ if __name__ == "__main__":
         root="/Users/limengfan/Dataset/PennFudanPed",
         batch_size=Batch_Size,
         train=True,
-        shuffle=True,
-        num_workers=10,
+        shuffle=Suffle,
+        num_workers=Num_Workers,
     )
     train_batch_num = len(train_data_loader)
 
@@ -182,8 +185,8 @@ if __name__ == "__main__":
         root="/Users/limengfan/Dataset/PennFudanPed",
         batch_size=Batch_Size,
         train=True,
-        shuffle=True,
-        num_workers=10,
+        shuffle=Suffle,
+        num_workers=Num_Workers,
     )
     validate_batch_num = len(validate_data_loader)
 

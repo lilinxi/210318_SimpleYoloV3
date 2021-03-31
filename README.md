@@ -171,6 +171,15 @@ Though both approaches share the underlying memory. torch.as_tensor accepts a bi
 
 ![](./readme_images/detach_example.png)
 
+### tensor.detach() 和 tensor.clone()
+
+- tensor.clone()：返回一个和源张量同shape、dtype和device的张量，与源张量不共享数据内存，但提供梯度的回溯。
+- tensor.detach()：即返回一个和源张量同shape、dtype和device的张量，与源张量共享数据内存，但不提供梯度计算，即requires_grad=False，因此脱离计算图。
+
+**clone 和 detach 联合使用**：clone 提供了非数据共享的梯度追溯功能，而 detach 又舍弃了梯度功能，因此 clone 和 detach 意味着着只做简单的数据复制，既不数据共享，也不对梯度共享，从此两个张量无关联。
+
+`.clone().detach()`或`.numpy().copy()`
+
 ### torch.Tensor、torch.autograd.Variable 和 torch.nn.parameter.Parameter
 
 #### torch.Tensor 和 torch.autograd.Variable
