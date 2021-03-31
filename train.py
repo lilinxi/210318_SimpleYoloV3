@@ -154,7 +154,7 @@ if __name__ == "__main__":
     Freeze_Epoch_LR = 1e-3
     Unfreeze_Epoch_LR = 1e-4
 
-    Num_Workers = 10
+    Num_Workers = 12
     Suffle = True
 
     # 2. 创建 yolo 模型，训练前一定要修改 Config 里面的 classes 参数，训练的是 YoloNet 不是 Yolo
