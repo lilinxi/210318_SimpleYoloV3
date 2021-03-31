@@ -6,6 +6,26 @@ TODO：未处理 config["cuda"] = True 的情况
 
 ---
 
+## YoloV3 架构
+
+### DarkNet53 架构
+
+![](./readme_images/DarkNet.png)
+
+### YoloV3 架构
+
+![](./readme_images/YoloV3Net.png)
+
+### YoloV3 前向传播流程图
+
+![](./readme_images/YoloV3_forward.png)
+
+### YoloV3 正反向传播数据流图
+
+![](./readme_images/YoloV3_data_flowing.png)
+
+---
+
 ## PIL、Numpy 和 Pytorch 基础
 
 ### * 和 **
