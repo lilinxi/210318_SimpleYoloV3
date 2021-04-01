@@ -3,15 +3,18 @@ if __name__ == "__main__":
     import dataset.pennfudan_dataset
     import model.yolov3
 
+    Config = conf.config.DefaultConfig
+    Config = conf.config.PennFudanConfig
+
     # 1. 初始化模型
-    yolov3 = model.yolov3.YoloV3(conf.config.DefaultConfig)
+    yolov3 = model.yolov3.YoloV3(Config)
 
     # 2. 遍历数据集
     EPOCH = 2
     BATCH_SIZE = 1
 
     pennfudan_dataloader = dataset.pennfudan_dataset.get_pennfudan_dataloader(
-        config=conf.config.DefaultConfig,
+        config=Config,
         root='/Users/limengfan/Dataset/PennFudanPed',
         batch_size=BATCH_SIZE
     )
