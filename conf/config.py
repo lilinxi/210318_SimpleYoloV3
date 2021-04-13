@@ -13,8 +13,10 @@ VocNamesPath = os.path.join(os.getcwd(), "conf", "voc.names")
 
 DarkNet53WeightPath = os.path.join(os.getcwd(), "weights", "demo_darknet53_weights.pth")
 
-# VocDatasetRoot = "/Users/limengfan/Dataset/VOC/VOC2012Train"
-VocDatasetRoot = "/home/lenovo/data/lmf/Dataset/voc/VOCtrainval_11-May-2012"
+TrainLogPath = os.path.join(os.getcwd(), "logs_voc")
+
+VocDatasetRoot = "/Users/limengfan/Dataset/VOC/VOC2012Train"
+# VocDatasetRoot = "/home/lenovo/data/lmf/Dataset/voc/VOCtrainval_11-May-2012"
 
 PennFudanConfig: dict = {
     "anchors": [  # 锚框，width * height
@@ -53,8 +55,10 @@ VocConfig: dict = {
     "classes": 20,  # 分类数目
     "image_height": 416,  # 输入图片高度
     "image_width": 416,  # 输入图片宽度
-    "weights_path": "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/weights/demo_yolov3_weights.pth",  # 模型权重
-    "conf_threshold": 0.5,  # 正确预测框的最小置信度
+    # "weights_path": "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/weights/demo_yolov3_weights.pth",  # 模型权重
+    "weights_path": "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/"
+                    "Epoch22-Train_Loss4.6601-Val_Loss7.7557.pth",  # 模型权重
+    "conf_threshold": 0.05,  # 正确预测框的最小置信度
     "nms_iou_threshold": 0.3,  # 判断预测框重合的最大 iou 阈值
     "cuda": True and torch.cuda.is_available(),  # 是否使用 GPU
     "labels": [

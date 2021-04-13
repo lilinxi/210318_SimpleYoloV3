@@ -5,7 +5,7 @@ import PIL.Image
 
 import torch.utils.data
 
-import dataset.dataset_utils
+import dataset.bak_dataset_utils
 
 
 # -----------------------------------------------------------------------------------------------------------#
@@ -17,7 +17,7 @@ import dataset.dataset_utils
 #     def __init__(self, root: str, transforms: Compose) -> None:
 #
 # 实现了以下接口:
-# 1. def __getitem__(self, idx: int) -> (numpy.ndarray, list):  # 根据索引获取数据集中的数据
+# 1. def __getitem__(self, index: int) -> (numpy.ndarray, list):  # 根据索引获取数据集中的数据
 # 2. def __len__(self) -> int:  # 获取数据集的长度
 # -----------------------------------------------------------------------------------------------------------#
 
@@ -34,7 +34,7 @@ class PennFudanDataset(torch.utils.data.Dataset):
         # 1. 初始化数据集根目录和数据变换
         self.config = config
         self.root: str = root
-        self.transforms: dataset.dataset_utils.Compose = dataset.dataset_utils.get_transforms(self.config, train)
+        self.transforms: dataset.bak_dataset_utils.Compose = dataset.bak_dataset_utils.get_transforms(self.config, train)
 
         # 2. 对所有的文件路径进行排序，确保图像和蒙版对齐
         self.images_dir = os.path.join(root, "PNGImages")
@@ -114,7 +114,7 @@ def get_pennfudan_dataloader(
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        collate_fn=dataset.dataset_utils.collate_fn,
+        collate_fn=dataset.bak_dataset_utils.collate_fn,
         drop_last=True
     )
 

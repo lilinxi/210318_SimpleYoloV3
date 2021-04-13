@@ -2,7 +2,7 @@ import torchvision
 
 import conf.config
 import model.yolov3
-import dataset.voc_dataset
+import dataset.bak_voc_dataset
 
 if __name__ == '__main__':
 
@@ -13,7 +13,7 @@ if __name__ == '__main__':
     EPOCH = 1
     BATCH_SIZE = 10
 
-    voc_dataloader = dataset.voc_dataset.get_voc_dataloader(
+    voc_dataloader = dataset.bak_voc_dataset.get_voc_dataloader(
         config=Config,
         root="/Users/limengfan/Dataset/VOC/VOC2012Train",
         batch_size=BATCH_SIZE

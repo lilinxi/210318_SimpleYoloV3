@@ -90,6 +90,9 @@ class YoloV3(object):
         # -----------------------------------------------------------------------------------------------------------#
         print("predict_boxes:\n", predict_bbox_attrs_after_nms)
 
+        if predict_bbox_attrs_after_nms[0] == None:
+            return image
+
         # 1. 绘制预测框（红）
         for predict_box in numpy.around(predict_bbox_attrs_after_nms[0].numpy()).astype(numpy.int):
             (xmin, ymin, xmax, ymax, conf, label) = predict_box

@@ -1,3 +1,5 @@
+import os
+
 import tqdm
 
 import torch
@@ -6,7 +8,7 @@ import torch.utils.data.dataloader
 
 import conf.config
 import model.yolov3net, model.yolov3loss
-import dataset.voc_dataset
+import dataset.bak_voc_dataset
 
 
 def train_one_epoch(
@@ -117,7 +119,10 @@ def train_one_epoch(
     print(ret)
 
     # 3. 保存权重
-    torch.save(yolov3_net.state_dict(), "logs/" + ret + ".pth")
+    torch.save(
+        yolov3_net.state_dict(),
+        os.path.join(conf.config.TrainLogPath, ret + ".pth")
+    )
 
 
 def load_pretrained_weights(net: torch.nn.Module, weights_path: str, cuda: bool):
@@ -192,7 +197,7 @@ if __name__ == "__main__":
     yolov3_loss = model.yolov3loss.YoloV3Loss(Config)
 
     # 6. 加载训练数据集和测试数据集
-    train_data_loader = dataset.voc_dataset.get_voc_train_dataloader(
+    train_data_loader = dataset.bak_voc_dataset.get_voc_train_dataloader(
         config=Config,
         batch_size=Batch_Size,
         train=True,
@@ -201,7 +206,7 @@ if __name__ == "__main__":
     )
     train_batch_num = len(train_data_loader)
 
-    validate_data_loader = dataset.voc_dataset.get_voc_eval_dataloader(
+    validate_data_loader = dataset.bak_voc_dataset.get_voc_eval_dataloader(
         config=Config,
         batch_size=Batch_Size,
         train=True,
