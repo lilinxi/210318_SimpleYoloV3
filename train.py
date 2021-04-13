@@ -34,7 +34,7 @@ def train_one_epoch(
     # 1. 打开网络训练模式
     yolov3_net = yolov3_net.train()
 
-    torch.save(yolov3_net.state_dict(), "logs/" + "begin" + ".pth")
+    # torch.save(yolov3_net.state_dict(), "logs/" + "begin" + ".pth")
 
     # 2. 加载 tadm 进度条，
     with tqdm.tqdm(total=train_batch_num, desc=f'Epoch {epoch + 1}/{total_epoch}', postfix=dict) as pbar:
@@ -85,7 +85,7 @@ def train_one_epoch(
             if cuda:
                 tensord_images = tensord_images.cuda()
 
-            print("eval in cuda") if cuda else print("eval not in cuda")
+            # print("eval in cuda") if cuda else print("eval not in cuda")
 
             # 4. 清零梯度
             optimizer.zero_grad()
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     yolov3_net = model.yolov3net.YoloV3Net(Config)
 
     # 3. 加载 darknet53 的权值作为预训练权值
-    load_pretrained_weights(yolov3_net, "weights/demo_darknet53_weights.pth", Config["cuda"])
+    load_pretrained_weights(yolov3_net, conf.config.DarkNet53WeightPath, Config["cuda"])
 
     # 4. 开启训练模式
     yolov3_net = yolov3_net.train()
@@ -192,10 +192,8 @@ if __name__ == "__main__":
     yolov3_loss = model.yolov3loss.YoloV3Loss(Config)
 
     # 6. 加载训练数据集和测试数据集
-    train_data_loader = dataset.voc_dataset.get_voc_dataloader(
+    train_data_loader = dataset.voc_dataset.get_voc_train_dataloader(
         config=Config,
-        # root="/Users/limengfan/Dataset/VOC/VOC2012Train",
-        root="/home/lenovo/data/lmf/Dataset/voc/VOCtrainval_11-May-2012",
         batch_size=Batch_Size,
         train=True,
         shuffle=Suffle,
@@ -203,10 +201,8 @@ if __name__ == "__main__":
     )
     train_batch_num = len(train_data_loader)
 
-    validate_data_loader = dataset.voc_dataset.get_voc_dataloader(
+    validate_data_loader = dataset.voc_dataset.get_voc_eval_dataloader(
         config=Config,
-        # root="/Users/limengfan/Dataset/VOC/VOC2012Train",
-        root="/home/lenovo/data/lmf/Dataset/voc/VOCtrainval_11-May-2012",
         batch_size=Batch_Size,
         train=True,
         shuffle=Suffle,

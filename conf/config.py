@@ -1,10 +1,20 @@
+import os
+
 import torch
 
 # -----------------------------------------------------------------------------------------------------------#
 # PennFudanConfig
 # VocConfig
-# DefaultConfig
+# DefaultCocoConfig
 # -----------------------------------------------------------------------------------------------------------#
+
+CocoNamesPath = os.path.join(os.getcwd(), "conf", "coco.names")
+VocNamesPath = os.path.join(os.getcwd(), "conf", "voc.names")
+
+DarkNet53WeightPath = os.path.join(os.getcwd(), "weights", "demo_darknet53_weights.pth")
+
+# VocDatasetRoot = "/Users/limengfan/Dataset/VOC/VOC2012Train"
+VocDatasetRoot = "/home/lenovo/data/lmf/Dataset/voc/VOCtrainval_11-May-2012"
 
 PennFudanConfig: dict = {
     "anchors": [  # 锚框，width * height
@@ -50,11 +60,13 @@ VocConfig: dict = {
     "labels": [
         line.strip() for line in
         # open("/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/conf/voc.names").readlines()
-        open("/home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/conf/voc.names").readlines()
-    ],
+        # open("/home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/conf/voc.names").readlines()
+        open(VocNamesPath).readlines()
+    ] if os.path.exists(VocNamesPath)
+    else [print("warn in loading voc.names", VocNamesPath)],
 }
 
-DefaultConfig: dict = {
+DefaultCocoConfig: dict = {
     "anchors": [  # 锚框，width * height
         [
             [116, 90], [156, 198], [373, 326]  # 大
@@ -74,6 +86,8 @@ DefaultConfig: dict = {
     "labels": [
         line.strip() for line in
         # open("/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/conf/coco.names").readlines()
-        open("/home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/conf/coco.names").readlines()
-    ],
+        # open("/home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/conf/coco.names").readlines()
+        open(CocoNamesPath).readlines()
+    ] if os.path.exists(CocoNamesPath)
+    else [print("warn in loading coco.names", CocoNamesPath)],
 }

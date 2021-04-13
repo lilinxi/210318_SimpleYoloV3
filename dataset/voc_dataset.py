@@ -1,20 +1,22 @@
-import os
-
 import numpy
 import PIL.Image
 
 import torch.utils.data
 import torchvision
 
+import conf.config
 import dataset.dataset_utils
 
 
 class VOCDataset(torch.utils.data.Dataset):
-    def __init__(self, config: dict, root: str, train: bool = True) -> None:
+    def __init__(self, config: dict, root: str, image_set: str, train: bool = True) -> None:
         super().__init__()
 
         self.config = config
-        self.voc2012_dataset = torchvision.datasets.VOCDetection(root=root)
+        self.voc2012_dataset = torchvision.datasets.VOCDetection(
+            root=root,
+            image_set=image_set,
+        )
         self.transforms: dataset.dataset_utils.Compose = dataset.dataset_utils.get_transforms(self.config, train)
 
     def __getitem__(self, idx: int) -> (PIL.Image.Image, numpy.ndarray):
@@ -30,7 +32,12 @@ class VOCDataset(torch.utils.data.Dataset):
             raw_y = (ymax + ymin) / 2
             raw_w = xmax - xmin
             raw_h = ymax - ymin
-            raw_target.append([raw_x, raw_y, raw_w, raw_h, self.config["labels"].index(object["name"])])
+            raw_target.append(
+                [
+                    raw_x, raw_y, raw_w, raw_h,
+                    self.config["labels"].index(object["name"]) if object["name"] in self.config["labels"] else -1
+                ]
+            )
         raw_target = numpy.asarray(raw_target)
 
         # 5. 执行数据变换
@@ -45,15 +52,16 @@ class VOCDataset(torch.utils.data.Dataset):
 
 def get_voc_dataloader(
         config: dict,
-        root: str,
-        batch_size: int,
+        image_set: str,
+        batch_size: int = 1,
         train: bool = False,
         shuffle: bool = False,
         num_workers: int = 0,
 ) -> torch.utils.data.DataLoader:
     voc_dataset = VOCDataset(
         config=config,
-        root=root,
+        root=conf.config.VocDatasetRoot,
+        image_set=image_set,
         train=train
     )
 
@@ -69,6 +77,40 @@ def get_voc_dataloader(
     return voc_dataloader
 
 
+def get_voc_train_dataloader(
+        config: dict,
+        batch_size: int = 1,
+        train: bool = False,
+        shuffle: bool = False,
+        num_workers: int = 0,
+) -> torch.utils.data.DataLoader:
+    return get_voc_dataloader(
+        config,
+        "train",
+        batch_size,
+        train,
+        shuffle,
+        num_workers,
+    )
+
+
+def get_voc_eval_dataloader(
+        config: dict,
+        batch_size: int = 1,
+        train: bool = False,
+        shuffle: bool = False,
+        num_workers: int = 0,
+) -> torch.utils.data.DataLoader:
+    return get_voc_dataloader(
+        config,
+        "val",
+        batch_size,
+        train,
+        shuffle,
+        num_workers,
+    )
+
+
 # -----------------------------------------------------------------------------------------------------------#
 # Test
 # -----------------------------------------------------------------------------------------------------------#
@@ -77,13 +119,13 @@ if __name__ == "__main__":
     import conf.config
 
     EPOCH = 2
-    BATCH_SIZE = 2
 
-    voc_dataloader = get_voc_dataloader(
+    voc_dataloader = get_voc_train_dataloader(
         config=conf.config.VocConfig,
-        root="/Users/limengfan/Dataset/VOC/VOC2012Train",
-        batch_size=BATCH_SIZE
     )
+
+    print(len(voc_dataloader))
+    print(len(get_voc_eval_dataloader(config=conf.config.VocConfig)))
 
     for epoch in range(EPOCH):
         print("Epoch:", epoch)

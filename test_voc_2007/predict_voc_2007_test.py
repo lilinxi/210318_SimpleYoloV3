@@ -6,7 +6,7 @@ import dataset.voc_dataset
 
 if __name__ == '__main__':
 
-    Config = conf.config.DefaultConfig
+    Config = conf.config.DefaultCocoConfig
 
     yolov3 = model.yolov3.YoloV3(Config)
 

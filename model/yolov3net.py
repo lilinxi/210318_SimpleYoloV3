@@ -140,7 +140,7 @@ class YoloV3Net(nn.Module):
 if __name__ == "__main__":
     from conf import config
 
-    yolov3 = YoloV3Net(config.DefaultConfig)
+    yolov3 = YoloV3Net(config.DefaultCocoConfig)
     for key, value in yolov3.state_dict().items():
         print(key, value.shape)
 

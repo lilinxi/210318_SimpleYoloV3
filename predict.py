@@ -3,7 +3,7 @@ if __name__ == "__main__":
     import dataset.pennfudan_dataset
     import model.yolov3
 
-    Config = conf.config.DefaultConfig
+    Config = conf.config.DefaultCocoConfig
     # Config = conf.config.PennFudanConfig
 
     # 1. 初始化模型
