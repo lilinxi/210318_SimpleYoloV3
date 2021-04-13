@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 import torch
 import torchvision
+from typing import List
 
 import model.yolov3net
 import model.yolov3decode
@@ -118,3 +119,41 @@ class YoloV3(object):
                 del draw
 
         return image
+
+    def predict_annotation(self, tensord_image: torch.Tensor) -> List[tuple]:
+        """
+        检测图片
+
+        :param image: 待检测图片，单张
+        """
+        # -----------------------------------------------------------------------------------------------------------#
+        # step1. 提取预测框
+        # -----------------------------------------------------------------------------------------------------------#
+        with torch.no_grad():  # 1. 没有梯度传递，进行图像检测
+            # 2. 将图像输入网络当中进行预测
+            predict_feature_list = self.net(tensord_image.unsqueeze(dim=0))
+            predict_bbox_attrs_list = []  # 预测框列表
+
+            # 3. 对三种大小的预测框进行解析
+            for index in range(3):  # 顺序：大，中，小
+                predict_bbox_attrs_list.append(self.yolov3_decode(predict_feature_list[index]))
+
+            # 4. 将预测框进行堆叠
+            predict_bbox_attrs = torch.cat(predict_bbox_attrs_list, 1)  # 按第一个维度拼接：13*13*3 + 26*26*3 + 52*52*3 = 10647
+
+            # 5. 进行非极大抑制
+            predict_bbox_attrs_after_nms = model.yolov3decode.non_max_suppression(
+                predict_bbox_attrs,  # 预测框列表
+                conf_threshold=self.config["conf_threshold"],  # 置信度
+                nms_iou_threshold=self.config["nms_iou_threshold"]  # iou 阈值
+            )
+
+        # -----------------------------------------------------------------------------------------------------------#
+        # step3. 绘制预测框
+        # -----------------------------------------------------------------------------------------------------------#
+        predict_annotation = []
+        for predict_box in predict_bbox_attrs_after_nms[0]:
+            (xmin, ymin, xmax, ymax, conf, label) = predict_box
+            predict_annotation.append((conf, xmin, ymin, xmax, ymax, label))
+
+        return predict_annotation

@@ -78,6 +78,8 @@ class YoloV3Loss(torch.nn.Module):
 
         self.ignore_threshold = 0.5  # iou 忽略的阈值
 
+        self.cuda = config["cuda"]
+
     def pyramid_target(self, tensord_target_list: List[torch.Tensor]):
         pyramid_target_list_13 = []
         pyramid_target_list_26 = []
@@ -192,7 +194,30 @@ class YoloV3Loss(torch.nn.Module):
                 target_obj_mask[bs_i, pyramid_anch_i, truth_grid_y[box_i], truth_grid_x[box_i]] = 1
                 target_noobj_mask[bs_i, pyramid_anch_i, truth_grid_y[box_i], truth_grid_x[box_i]] = 0
 
-        return target_x, target_y, target_w, target_h, target_loss_weight_xw, target_loss_weight_yh, target_obj_conf, target_class_conf_list, target_obj_mask, target_noobj_mask
+        # print("loss in cuda") if self.cuda else print("loss not in cuda")
+
+        if self.cuda:
+            return target_x.cuda(), \
+                   target_y.cuda(), \
+                   target_w.cuda(), \
+                   target_h.cuda(), \
+                   target_loss_weight_xw.cuda(), \
+                   target_loss_weight_yh.cuda(), \
+                   target_obj_conf.cuda(), \
+                   target_class_conf_list.cuda(), \
+                   target_obj_mask.cuda(), \
+                   target_noobj_mask.cuda()
+
+        return target_x, \
+               target_y, \
+               target_w, \
+               target_h, \
+               target_loss_weight_xw, \
+               target_loss_weight_yh, \
+               target_obj_conf, \
+               target_class_conf_list, \
+               target_obj_mask, \
+               target_noobj_mask
 
     def compute_loss(self, predict_feature: torch.Tensor, decoded_target) -> (
             torch.Tensor, torch.Tensor):
@@ -230,11 +255,11 @@ class YoloV3Loss(torch.nn.Module):
         loss_class = torch.sum(torch.nn.BCELoss()(predict_class_conf_list[target_obj_mask == 1],
                                                   target_class_conf_list[target_obj_mask == 1]))
 
-        print("\n---------------------------------------")
-        print(loss_x, loss_y)
-        print(loss_w, loss_h)
-        print(loss_conf, loss_class)
-        print("---------------------------------------\n")
+        # print("\n---------------------------------------")
+        # print(loss_x, loss_y)
+        # print(loss_w, loss_h)
+        # print(loss_conf, loss_class)
+        # print("---------------------------------------\n")
 
         loss = loss_x * self.lambda_xy + loss_y * self.lambda_xy + \
                loss_w * self.lambda_wh + loss_h * self.lambda_wh + \

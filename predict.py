@@ -4,7 +4,7 @@ if __name__ == "__main__":
     import model.yolov3
 
     Config = conf.config.DefaultConfig
-    Config = conf.config.PennFudanConfig
+    # Config = conf.config.PennFudanConfig
 
     # 1. 初始化模型
     yolov3 = model.yolov3.YoloV3(Config)
@@ -25,6 +25,8 @@ if __name__ == "__main__":
             print("step:", step)
             for batch_index in range(BATCH_SIZE):
                 print("batch:", batch_index)
+                print(tensord_images[batch_index].shape)
+                # exit(13)
                 # 3. 预测结果并比较
                 predict_image = yolov3.predict(tensord_images[batch_index], tensord_target_list[batch_index])
                 predict_image.show()
