@@ -56,8 +56,9 @@ VocConfig: dict = {
     "image_height": 416,  # 输入图片高度
     "image_width": 416,  # 输入图片宽度
     # "weights_path": "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/weights/demo_yolov3_weights.pth",  # 模型权重
-    "weights_path": "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/"
-                    "Epoch22-Train_Loss4.6601-Val_Loss7.7557.pth",  # 模型权重
+    "weights_path": "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs/begin.pth",
+    # "weights_path": "/home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/logs/"
+    #                 "Epoch9-Train_Loss6.5457-Val_Loss6.6659.pth",  # 模型权重
     "conf_threshold": 0.05,  # 正确预测框的最小置信度
     "nms_iou_threshold": 0.3,  # 判断预测框重合的最大 iou 阈值
     "cuda": True and torch.cuda.is_available(),  # 是否使用 GPU

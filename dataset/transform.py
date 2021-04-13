@@ -84,7 +84,7 @@ class ScaleImageAndBoxes(object):
         scaled_image = raw_image.resize((nw, nh), PIL.Image.BICUBIC)
 
         # 5. 填补图像边缘
-        new_image = PIL.Image.new('RGB', (scaled_width, scaled_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
+        new_image = PIL.Image.new("RGB", (scaled_width, scaled_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
         new_image.paste(scaled_image, ((scaled_width - nw) // 2, (scaled_height - nh) // 2))  # 等比例放缩后的图像粘贴到底板中央
 
         # 6. 变换 boxes
@@ -123,10 +123,45 @@ class ScaleImage(object):
         scaled_image = raw_image.resize((nw, nh), PIL.Image.BICUBIC)
 
         # 5. 填补图像边缘
-        new_image = PIL.Image.new('RGB', (scaled_width, scaled_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
+        new_image = PIL.Image.new("RGB", (scaled_width, scaled_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
         new_image.paste(scaled_image, ((scaled_width - nw) // 2, (scaled_height - nh) // 2))  # 等比例放缩后的图像粘贴到底板中央
 
         return new_image, truth_annotation
+
+
+class RescaleBoxes(object):
+    """
+    boxes 等比例放缩（反向）
+    """
+
+    def __init__(self, config: dict) -> None:
+        super().__init__()
+
+        self.config = config
+
+    def __call__(self, raw_image: PIL.Image.Image, scaled_boxes: numpy.ndarray) -> (PIL.Image.Image, numpy.ndarray):
+        # 1. 图像原始大小，图像放缩后大小
+        raw_width, raw_height = raw_image.size
+        scaled_width = self.config["image_width"]
+        scaled_height = self.config["image_height"]
+
+        # 2. 计算图像放缩倍数，取最小的那个放缩值
+        scale = min(scaled_width / raw_width, scaled_height / raw_height)
+
+        # 3. 等比例放缩后的图像大小
+        nw = int(raw_width * scale)
+        nh = int(raw_height * scale)
+
+        # 4. 变换 boxes
+        rescaled_boxes = scaled_boxes.copy()
+        rescaled_boxes[:, 0] -= (scaled_width - nw) // 2
+        rescaled_boxes[:, 1] -= (scaled_height - nh) // 2
+        rescaled_boxes[:, 2] -= (scaled_width - nw) // 2
+        rescaled_boxes[:, 3] -= (scaled_height - nh) // 2
+        rescaled_boxes[:, 0:4] = rescaled_boxes[:, 0:4] / scale
+        rescaled_boxes = numpy.around(rescaled_boxes).astype(numpy.int)
+
+        return raw_image, rescaled_boxes
 
 
 class NormImageAndBoxes(object):

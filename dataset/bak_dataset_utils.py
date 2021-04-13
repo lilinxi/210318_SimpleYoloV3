@@ -69,7 +69,7 @@ class ScaleImageAndTarget(object):
         scaled_image = raw_image.resize((nw, nh), PIL.Image.BICUBIC)
 
         # 5. 填补图像边缘
-        new_image = PIL.Image.new('RGB', (scaled_width, scaled_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
+        new_image = PIL.Image.new("RGB", (scaled_width, scaled_height), (128, 128, 128))  # 创建一张灰色底板作为返回的图像
         new_image.paste(scaled_image, ((scaled_width - nw) // 2, (scaled_height - nh) // 2))  # 等比例放缩后的图像粘贴到底板中央
 
         # 6. 变换 target

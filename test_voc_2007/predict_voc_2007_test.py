@@ -4,7 +4,7 @@ import conf.config
 import model.yolov3
 import dataset.bak_voc_dataset
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Config = conf.config.DefaultCocoConfig
 

@@ -53,3 +53,5 @@
 *__pycache__**/
 
 *.pth
+
+*map_input**/

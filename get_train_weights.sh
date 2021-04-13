@@ -1,3 +1,3 @@
 sftp lab2 << EOF
-get -r /home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/logs/Epoch22-Train_Loss4.6601-Val_Loss7.7557.pth /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs
+get -r /home/lenovo/data/lmf/210318_SimpleYoloV3Sftp/logs/Epoch48-Train_Loss0.7002-Val_Loss14.5034.pth /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/logs
 EOF

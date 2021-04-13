@@ -8,7 +8,7 @@ import torch.utils.data.dataloader
 
 import conf.config
 import model.yolov3net, model.yolov3loss
-import dataset.bak_voc_dataset
+import dataset.voc_dataset
 
 
 def train_one_epoch(
@@ -39,7 +39,7 @@ def train_one_epoch(
     # torch.save(yolov3_net.state_dict(), "logs/" + "begin" + ".pth")
 
     # 2. 加载 tadm 进度条，
-    with tqdm.tqdm(total=train_batch_num, desc=f'Epoch {epoch + 1}/{total_epoch}', postfix=dict) as pbar:
+    with tqdm.tqdm(total=train_batch_num, desc=f"Epoch {epoch + 1}/{total_epoch}", postfix=dict) as pbar:
         # 3. 批次遍历数据集
         for iteration, (tensord_images, tensord_target_list) in enumerate(train_data_loader):
             if cuda:
@@ -66,8 +66,8 @@ def train_one_epoch(
             total_train_loss += loss.item()
             pbar.set_postfix(
                 **{
-                    'lr': optimizer.param_groups[0]["lr"],  # 优化器的当前学习率
-                    'train_loss': total_train_loss / (iteration + 1),  # 当前 epoch 的训练总损失 / 迭代次数
+                    "lr": optimizer.param_groups[0]["lr"],  # 优化器的当前学习率
+                    "train_loss": total_train_loss / (iteration + 1),  # 当前 epoch 的训练总损失 / 迭代次数
                 }
             )
             pbar.update(1)  # 进度条更新
@@ -81,7 +81,7 @@ def train_one_epoch(
     yolov3_net = yolov3_net.eval()
 
     # 2. 加载 tadm 进度条，
-    with tqdm.tqdm(total=validate_batch_num, desc=f'Epoch {epoch + 1}/{total_epoch}', postfix=dict) as pbar:
+    with tqdm.tqdm(total=validate_batch_num, desc=f"Epoch {epoch + 1}/{total_epoch}", postfix=dict) as pbar:
         # 3. 批次遍历数据集
         for iteration, (tensord_images, tensord_target_list) in enumerate(validate_data_loader):
             if cuda:
@@ -102,7 +102,7 @@ def train_one_epoch(
             total_validate_loss += loss.item()
             pbar.set_postfix(
                 **{
-                    'validate_loss': total_validate_loss / (iteration + 1),  # 当前 epoch 的验证总损失 / 迭代次数
+                    "validate_loss": total_validate_loss / (iteration + 1),  # 当前 epoch 的验证总损失 / 迭代次数
                 }
             )
             pbar.update(1)  # 进度条更新
@@ -134,11 +134,11 @@ def load_pretrained_weights(net: torch.nn.Module, weights_path: str, cuda: bool)
     :param cuda: 是否使用 gpu
     :return:
     """
-    print('Loading weights into state dict...')
+    print("Loading weights into state dict...", weights_path)
     print("weights in cuda") if cuda else print("weights not in cuda")
 
     # 1. 确定设备
-    device = torch.device('cuda' if cuda else 'cpu')
+    device = torch.device("cuda" if cuda else "cpu")
 
     # 2. 获取网络权重字典和预训练权重字典
     net_dict = net.state_dict()
@@ -153,7 +153,7 @@ def load_pretrained_weights(net: torch.nn.Module, weights_path: str, cuda: bool)
     # 5. net 加载 net_dict
     net.load_state_dict(net_dict)
 
-    print('Loading weights into state dict Success！')
+    print("Loading weights into state dict Success！")
 
 
 if __name__ == "__main__":
@@ -169,8 +169,8 @@ if __name__ == "__main__":
     # 提示 OOM 或者显存不足请调小 Batch_size
     Batch_Size = 16
 
-    Init_Epoch = 0  # 起始世代
-    Freeze_Epoch = 50  # 冻结训练的世代
+    Init_Epoch = 100  # 起始世代
+    Freeze_Epoch = 100  # 冻结训练的世代
     Unfreeze_Epoch = 1000  # 总训练世代
 
     Freeze_Epoch_LR = 1e-3
@@ -183,7 +183,8 @@ if __name__ == "__main__":
     yolov3_net = model.yolov3net.YoloV3Net(Config)
 
     # 3. 加载 darknet53 的权值作为预训练权值
-    load_pretrained_weights(yolov3_net, conf.config.DarkNet53WeightPath, Config["cuda"])
+    # load_pretrained_weights(yolov3_net, conf.config.DarkNet53WeightPath, Config["cuda"])
+    load_pretrained_weights(yolov3_net, Config["weights_path"], Config["cuda"])
 
     # 4. 开启训练模式
     yolov3_net = yolov3_net.train()
@@ -197,19 +198,17 @@ if __name__ == "__main__":
     yolov3_loss = model.yolov3loss.YoloV3Loss(Config)
 
     # 6. 加载训练数据集和测试数据集
-    train_data_loader = dataset.bak_voc_dataset.get_voc_train_dataloader(
+    train_data_loader = dataset.voc_dataset.VOCDataset.TrainDataloader(
         config=Config,
         batch_size=Batch_Size,
-        train=True,
         shuffle=Suffle,
         num_workers=Num_Workers,
     )
     train_batch_num = len(train_data_loader)
 
-    validate_data_loader = dataset.bak_voc_dataset.get_voc_eval_dataloader(
+    validate_data_loader = dataset.voc_dataset.VOCDataset.TrainAsEvalDataloader(
         config=Config,
         batch_size=Batch_Size,
-        train=True,
         shuffle=Suffle,
         num_workers=Num_Workers,
     )

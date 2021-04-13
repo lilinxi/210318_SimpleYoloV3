@@ -107,6 +107,9 @@ class YoloV3Decode(torch.nn.Module):
             .t() \
             .repeat(batch_size * cur_anchors_num, 1, 1) \
             .view(predict_y.shape)
+        if self.cuda:
+            grid_x = grid_x.cuda()
+            grid_y = grid_y.cuda()
         # 6.2 叠加 grid tensor
         grid_predict_x = norm_predict_x + grid_x
         grid_predict_y = norm_predict_y + grid_y
@@ -127,6 +130,9 @@ class YoloV3Decode(torch.nn.Module):
         grid_anchor_height = anchor_height.repeat(batch_size, 1). \
             repeat(1, 1, predict_feature_height * predict_feature_width). \
             view(predict_h.shape)
+        if self.cuda:
+            grid_anchor_width = grid_anchor_width.cuda()
+            grid_anchor_height = grid_anchor_height.cuda()
         # 7.2 乘以 anchor tensor
         anchord_predict_width = torch.exp(predict_w) * grid_anchor_width
         anchord_predict_height = torch.exp(predict_h) * grid_anchor_height

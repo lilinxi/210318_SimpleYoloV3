@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     pennfudan_dataloader = get_pennfudan_dataloader(
         config=conf.config.PennFudanConfig,
-        root='/Users/limengfan/Dataset/PennFudanPed',
+        root="/Users/limengfan/Dataset/PennFudanPed",
         batch_size=BATCH_SIZE
     )
 

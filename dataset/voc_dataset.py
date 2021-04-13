@@ -5,7 +5,7 @@ import torch.utils.data
 import torchvision
 
 import conf.config
-import dataset.dataset_utils
+import dataset.transform
 
 
 class VOCDataset(torch.utils.data.Dataset):
@@ -17,7 +17,7 @@ class VOCDataset(torch.utils.data.Dataset):
             root=root,
             image_set=image_set,
         )
-        self.transforms: dataset.dataset_utils.Compose = dataset.dataset_utils.get_transforms(self.config, train)
+        self.transforms: dataset.transform.Compose = dataset.transform.get_transforms(self.config, train)
 
     def __getitem__(self, index: int) -> (PIL.Image.Image, dict):
         (raw_image, raw_annotation) = self.voc2012_dataset[index]
@@ -40,7 +40,7 @@ class VOCDataset(torch.utils.data.Dataset):
             )
 
         truth_annotation["boxes"] = numpy.asarray(raw_boxes)
-        truth_annotation["raw_image_shape"] = raw_image.size  # width * height
+        truth_annotation["raw_image"] = raw_image
         truth_annotation["filename"] = raw_annotation["annotation"]["filename"]
 
         # 5. 执行数据变换
@@ -60,6 +60,7 @@ class VOCDataset(torch.utils.data.Dataset):
             train: bool = False,
             shuffle: bool = False,
             num_workers: int = 0,
+            drop_last: bool = True,
     ) -> torch.utils.data.DataLoader:
         voc_dataset = VOCDataset(
             config=config,
@@ -73,8 +74,8 @@ class VOCDataset(torch.utils.data.Dataset):
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
-            collate_fn=dataset.dataset_utils.train_collate_fn if train else dataset.dataset_utils.eval_collate_fn,
-            drop_last=True
+            collate_fn=dataset.transform.train_collate_fn if train else dataset.transform.eval_collate_fn,
+            drop_last=drop_last
         )
 
         return voc_dataloader
@@ -83,34 +84,51 @@ class VOCDataset(torch.utils.data.Dataset):
     def TrainDataloader(
             config: dict,
             batch_size: int = 1,
-            train: bool = True,
             shuffle: bool = False,
             num_workers: int = 0,
     ) -> torch.utils.data.DataLoader:
         return VOCDataset.Dataloader(
             config,
-            "train",
-            batch_size,
-            train,
-            shuffle,
-            num_workers,
+            image_set="train",
+            batch_size=batch_size,
+            train=True,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            drop_last=True,
         )
 
     @staticmethod
     def EvalDataloader(
             config: dict,
             batch_size: int = 1,
-            train: bool = False,
             shuffle: bool = False,
             num_workers: int = 0,
     ) -> torch.utils.data.DataLoader:
         return VOCDataset.Dataloader(
             config,
-            "val",
-            batch_size,
-            train,
-            shuffle,
-            num_workers,
+            image_set="val",
+            batch_size=batch_size,
+            train=False,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            drop_last=False,
+        )
+
+    @staticmethod
+    def TrainAsEvalDataloader(
+            config: dict,
+            batch_size: int = 1,
+            shuffle: bool = False,
+            num_workers: int = 0,
+    ) -> torch.utils.data.DataLoader:
+        return VOCDataset.Dataloader(
+            config,
+            image_set="train",
+            batch_size=batch_size,
+            train=False,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            drop_last=False,
         )
 
 

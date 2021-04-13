@@ -45,7 +45,7 @@ b = {"key1": 1, "key2": "value"}
 # 1. 函数形参
 fun(a, b)
 """
-((1, 3), {'key1': 1, 'key2': 'value'})
+((1, 3), {"key1": 1, "key2": "value"})
 {}
 """
 
@@ -53,14 +53,14 @@ fun(a, b)
 fun(*a, b=b)
 """
 (1, 3)
-{'b': {'key1': 1, 'key2': 'value'}}
+{"b": {"key1": 1, "key2": "value"}}
 """
 
 # 2. 函数实参
 fun(*a, **b)
 """
 (1, 3)
-{'key1': 1, 'key2': 'value'}
+{"key1": 1, "key2": "value"}
 """
 
 # 3. 序列解包
@@ -141,7 +141,7 @@ torch.Size([10, 6, 7])
 ```python
 import PIL
 
-im = PIL.Image.open('./images/test0.png') 
+im = PIL.Image.open("./images/test0.png") 
 width, height = im.size
 ```
 
@@ -149,7 +149,7 @@ width, height = im.size
 import PIL
 import numpy
 
-I = numpy.asarray(PIL.Image.open('./images/test0.png', mode="rb"))
+I = numpy.asarray(PIL.Image.open("./images/test0.png", mode="rb"))
 im = PIL.Image.fromarray(numpy.uint8(I))
 im = PIL.Image.fromarray(I.astype(numpy.uint8))
 ```
@@ -435,7 +435,7 @@ torch.nn.init.normal_(tensor, mean=0, std=1)
     - n_l 为输入的维数，即 n_l = 卷积核边长^2 × channel数。
     
 ```python
-torch.nn.init.kaiming_normal_(tensor, a=0, mode='fan_in', nonlinearity='leaky_relu')
+torch.nn.init.kaiming_normal_(tensor, a=0, mode="fan_in", nonlinearity="leaky_relu")
 ```
 
 3. 保证输入输出的方差不变。
@@ -525,7 +525,7 @@ DataLoader.num_workers != 0 时可能报错：
     child processes and you have forgotten to use the proper idiom
     in the main module:
 
-        if __name__ == '__main__':
+        if __name__ == "__main__":
             freeze_support ()
             ...
 
@@ -533,14 +533,14 @@ DataLoader.num_workers != 0 时可能报错：
     is not going to be frozen.
 ```
 
-必须在主函数里调用`freeze_support ()`，这样，之后才能 fork 多线程，而且需要在 main 模块的 if __name__ == '__main__' 该行之后马上调用该函数。
+必须在主函数里调用`freeze_support ()`，这样，之后才能 fork 多线程，而且需要在 main 模块的 if __name__ == "__main__" 该行之后马上调用该函数。
 
 由于 Python 的内存操作并不是线程安全的，对于多线程的操作加了一把锁。这把锁被称为 GIL（Global Interpreter Lock）。而 Python 使用多进程来替代多线程，通过使用子进程而非线程有效地绕过了**全局解释器锁**。
 
 ```python
 import torch
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     torch.multiprocessing.freeze_support()
 ```
 
@@ -612,7 +612,7 @@ return img.float().div(255)
 # PIL-> tensor -> PIL
 from torchvision.transforms import ToPILImage
 
-PIL_img = Image.open('test_pic.jpeg')
+PIL_img = Image.open("test_pic.jpeg")
 tensor_from_PIL = ToTensor()(PIL_img)
 img = ToPILImage()(tensor_from_PIL)
 ```
@@ -623,7 +623,7 @@ img = ToPILImage()(tensor_from_PIL)
 # PIL -> np.ndarray -> tensor -> PIL
 from torchvision.transforms import ToPILImage
 
-PIL_img = Image.open('test_pic.jpeg')
+PIL_img = Image.open("test_pic.jpeg")
 np_img = np.asarray(PIL_img)
 tensor_from_np = ToTensor()(np_img)
 img = ToPILImage()(tensor_from_np)

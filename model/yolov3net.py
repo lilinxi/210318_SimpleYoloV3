@@ -47,7 +47,7 @@ class YoloV3Net(nn.Module):
 
         # 上一层的中间预测结果进行特征整合，上采样：512*13*13 -> 256*26*26
         self.last_layer_26_conv = base_model.Conv2d(512, 256, 1)
-        self.last_layer_26_upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.last_layer_26_upsample = nn.Upsample(scale_factor=2, mode="nearest")
 
         # channels: 512/2 + 512 -> 256 -> 255
         self.last_layer_26 = self._make_predict_layer(
@@ -57,7 +57,7 @@ class YoloV3Net(nn.Module):
 
         # 上一层的中间预测结果进行特征整合，上采样：256*26*26 -> 128*52*52
         self.last_layer_52_conv = base_model.Conv2d(256, 128, 1)
-        self.last_layer_52_upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.last_layer_52_upsample = nn.Upsample(scale_factor=2, mode="nearest")
 
         # channels: 256/2 + 256 -> 128 -> 255
         self.last_layer_52 = self._make_predict_layer(

@@ -2,6 +2,7 @@ rm -rf /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 
 mkdir /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/train.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
+cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/predict_voc.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/run.sh /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/view.sh /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 
@@ -11,7 +12,7 @@ cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/conf/config.py /Users/li
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/conf/voc.names /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/conf
 
 mkdir /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/dataset
-cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/dataset/dataset_utils.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/dataset
+cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/dataset/transform.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/dataset
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/dataset/pennfudan_dataset.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/dataset
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/dataset/voc_dataset.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/dataset
 
