@@ -255,11 +255,11 @@ class YoloV3Loss(torch.nn.Module):
         loss_class = torch.sum(torch.nn.BCELoss()(predict_class_conf_list[target_obj_mask == 1],
                                                   target_class_conf_list[target_obj_mask == 1]))
 
-        # print("\n---------------------------------------")
-        # print(loss_x, loss_y)
-        # print(loss_w, loss_h)
-        # print(loss_conf, loss_class)
-        # print("---------------------------------------\n")
+        print("\n---------------------------------------")
+        print(loss_x, loss_y)
+        print(loss_w, loss_h)
+        print(loss_conf, loss_class)
+        print("---------------------------------------\n")
 
         loss = loss_x * self.lambda_xy + loss_y * self.lambda_xy + \
                loss_w * self.lambda_wh + loss_h * self.lambda_wh + \
@@ -291,7 +291,7 @@ class YoloV3Loss(torch.nn.Module):
         if not torch.isnan(loss_52):
             loss_list.append(loss_52)
 
-        assert len(loss_list) is not 0
+        assert len(loss_list) != 0
 
         loss = sum(loss_list)
 
