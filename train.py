@@ -167,7 +167,8 @@ if __name__ == "__main__":
     print("config:\n", Config)
 
     # 提示 OOM 或者显存不足请调小 Batch_size
-    Batch_Size = 16
+    Train_Batch_Size = 16
+    Eval_Batch_Size = 8
 
     Init_Epoch = 100  # 起始世代
     Freeze_Epoch = 100  # 冻结训练的世代
@@ -200,15 +201,15 @@ if __name__ == "__main__":
     # 6. 加载训练数据集和测试数据集
     train_data_loader = dataset.voc_dataset.VOCDataset.TrainDataloader(
         config=Config,
-        batch_size=Batch_Size,
+        batch_size=Train_Batch_Size,
         shuffle=Suffle,
         num_workers=Num_Workers,
     )
     train_batch_num = len(train_data_loader)
 
-    validate_data_loader = dataset.voc_dataset.VOCDataset.TrainAsEvalDataloader(
+    validate_data_loader = dataset.voc_dataset.VOCDataset.EvalAsTrainDataloader(
         config=Config,
-        batch_size=Batch_Size,
+        batch_size=Eval_Batch_Size,
         shuffle=Suffle,
         num_workers=Num_Workers,
     )

@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     # 2. 遍历数据集
     EPOCH = 1
-    BATCH_SIZE = 1
+    BATCH_SIZE = 64
 
     voc_dataloader = dataset.voc_dataset.VOCDataset.EvalDataloader(
         config=Config,
@@ -25,7 +25,6 @@ if __name__ == "__main__":
     )
 
     print(len(voc_dataloader))
-    exit(-1)
 
     for epoch in range(EPOCH):
         print("Epoch:", epoch)
@@ -38,8 +37,9 @@ if __name__ == "__main__":
                 #     tensord_images[batch_index],
                 #     truth_annotation_list[batch_index])
                 # predict_image.show()
+                # exit(-1)
 
-                predict_image = yolov3.predict_detection_results(
+                predict_image = yolov3.predict_detection_result(
                     tensord_images[batch_index],
                     truth_annotation_list[batch_index])
 

@@ -200,13 +200,13 @@ class YoloV3(object):
         # -----------------------------------------------------------------------------------------------------------#
         # step3. 绘制预测框
         # -----------------------------------------------------------------------------------------------------------#
-        detection_result = open(
-            os.path.join(
-                "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/map_input/detection_results",
-                truth_annotation["filename"].split(".")[0] + ".txt"
-            ),
-            "w"
-        )
+        # detection_result = open(
+        #     os.path.join(
+        #         "/Users/limengfan/PycharmProjects/210318_SimpleYoloV3/map_input/detection_results",
+        #         truth_annotation["filename"].split(".")[0] + ".txt"
+        #     ),
+        #     "w"
+        # )
 
         if predict_bbox_attrs_after_nms[0] == None:
             return image
@@ -225,7 +225,7 @@ class YoloV3(object):
             draw.text([xmin, ymin, xmax, ymax], self.config["labels"][label], font=font, fill="#FF0000")
             del draw
 
-            detection_result.write("%s %s %s %s %s %s\n" % (self.config["labels"][label], conf, xmin, ymin, xmax, ymax))
+            # detection_result.write("%s %s %s %s %s %s\n" % (self.config["labels"][label], conf, xmin, ymin, xmax, ymax))
 
         # -----------------------------------------------------------------------------------------------------------#
         # step4. 绘制真值框
@@ -245,31 +245,31 @@ class YoloV3(object):
 
         return image
 
-    def predict_detection_results(self, tensord_image: torch.Tensor, truth_annotation: dict) -> None:
+    def predict_detection_result(self, tensord_image: torch.Tensor, truth_annotation: dict) -> None:
         # -----------------------------------------------------------------------------------------------------------#
         # step1. 提取预测框
         # -----------------------------------------------------------------------------------------------------------#
-        # with torch.no_grad():  # 1. 没有梯度传递，进行图像检测
-        #     # 2. 将图像输入网络当中进行预测
-        #     tensord_images = tensord_image.unsqueeze(dim=0)
-        #     if self.cuda:
-        #         tensord_images = tensord_images.cuda()
-        #     predict_feature_list = self.net(tensord_images)
-        #     predict_bbox_attrs_list = []  # 预测框列表
-        #
-        #     # 3. 对三种大小的预测框进行解析
-        #     for index in range(3):  # 顺序：大，中，小
-        #         predict_bbox_attrs_list.append(self.yolov3_decode(predict_feature_list[index]))
-        #
-        #     # 4. 将预测框进行堆叠
-        #     predict_bbox_attrs = torch.cat(predict_bbox_attrs_list, 1)  # 按第一个维度拼接：13*13*3 + 26*26*3 + 52*52*3 = 10647
-        #
-        #     # 5. 进行非极大抑制
-        #     predict_bbox_attrs_after_nms = model.yolov3decode.non_max_suppression(
-        #         predict_bbox_attrs,  # 预测框列表
-        #         conf_threshold=self.config["conf_threshold"],  # 置信度
-        #         nms_iou_threshold=self.config["nms_iou_threshold"]  # iou 阈值
-        #     )
+        with torch.no_grad():  # 1. 没有梯度传递，进行图像检测
+            # 2. 将图像输入网络当中进行预测
+            tensord_images = tensord_image.unsqueeze(dim=0)
+            if self.cuda:
+                tensord_images = tensord_images.cuda()
+            predict_feature_list = self.net(tensord_images)
+            predict_bbox_attrs_list = []  # 预测框列表
+
+            # 3. 对三种大小的预测框进行解析
+            for index in range(3):  # 顺序：大，中，小
+                predict_bbox_attrs_list.append(self.yolov3_decode(predict_feature_list[index]))
+
+            # 4. 将预测框进行堆叠
+            predict_bbox_attrs = torch.cat(predict_bbox_attrs_list, 1)  # 按第一个维度拼接：13*13*3 + 26*26*3 + 52*52*3 = 10647
+
+            # 5. 进行非极大抑制
+            predict_bbox_attrs_after_nms = model.yolov3decode.non_max_suppression(
+                predict_bbox_attrs,  # 预测框列表
+                conf_threshold=self.config["conf_threshold"],  # 置信度
+                nms_iou_threshold=self.config["nms_iou_threshold"]  # iou 阈值
+            )
 
         # -----------------------------------------------------------------------------------------------------------#
         # step2. 转为 PIL.Image.Image
@@ -279,15 +279,15 @@ class YoloV3(object):
         # -----------------------------------------------------------------------------------------------------------#
         # step3. 记录预测框和真值框
         # -----------------------------------------------------------------------------------------------------------#
-        # detection_result = open(
-        #     os.path.join(
-        #         os.getcwd(),
-        #         "map_input",
-        #         "detection_result",
-        #         truth_annotation["filename"].split(".")[0] + ".txt"
-        #     ),
-        #     "w"
-        # )
+        detection_result = open(
+            os.path.join(
+                os.getcwd(),
+                "map_input",
+                "detection_result",
+                truth_annotation["filename"].split(".")[0] + ".txt"
+            ),
+            "w"
+        )
 
         ground_truth = open(
             os.path.join(
@@ -299,16 +299,16 @@ class YoloV3(object):
             "w"
         )
 
-        # if predict_bbox_attrs_after_nms[0] == None:
-        #     return image
-        #
-        # # 1. 解析预测框
-        # image, predict_boxes = self.rescale_boxes(image, predict_bbox_attrs_after_nms[0].cpu().numpy())
-        #
-        # # 1. 绘制预测框（红）
-        # for predict_box in predict_boxes:
-        #     (xmin, ymin, xmax, ymax, conf, label) = predict_box
-        #     detection_result.write("%s %s %s %s %s %s\n" % (self.config["labels"][label], conf, xmin, ymin, xmax, ymax))
+        if predict_bbox_attrs_after_nms[0] == None:
+            return image
+
+        # 1. 解析预测框
+        image, predict_boxes = self.rescale_boxes(image, predict_bbox_attrs_after_nms[0].cpu().numpy())
+
+        # 1. 绘制预测框（红）
+        for predict_box in predict_boxes:
+            (xmin, ymin, xmax, ymax, conf, label) = predict_box
+            detection_result.write("%s %s %s %s %s %s\n" % (self.config["labels"][label], conf, xmin, ymin, xmax, ymax))
 
         # 2. 绘制真值框（绿）
         for truth_box in truth_annotation["boxes"]:

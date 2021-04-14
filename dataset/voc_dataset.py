@@ -98,6 +98,23 @@ class VOCDataset(torch.utils.data.Dataset):
         )
 
     @staticmethod
+    def EvalAsTrainDataloader(
+            config: dict,
+            batch_size: int = 1,
+            shuffle: bool = False,
+            num_workers: int = 0,
+    ) -> torch.utils.data.DataLoader:
+        return VOCDataset.Dataloader(
+            config,
+            image_set="val",
+            batch_size=batch_size,
+            train=True,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            drop_last=True,
+        )
+
+    @staticmethod
     def EvalDataloader(
             config: dict,
             batch_size: int = 1,

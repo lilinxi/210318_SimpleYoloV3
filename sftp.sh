@@ -5,6 +5,7 @@ cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/train.py /Users/limengfa
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/predict_voc.py /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/run.sh /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/view.sh /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
+cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/kill.sh /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp
 
 mkdir /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/conf
 cp /Users/limengfan/PycharmProjects/210318_SimpleYoloV3/conf/coco.names /Users/limengfan/PycharmProjects/210318_SimpleYoloV3Sftp/conf
